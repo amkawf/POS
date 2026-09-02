@@ -1,0 +1,16 @@
+services:
+  postgres:
+    image: postgres:17
+    container_name: pos-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: pos
+      POSTGRES_USER: pos
+      POSTGRES_PASSWORD: pos_dev_password
+    ports:
+      - "5433:5432"
+    volumes:
+      - pos_postgres_data:/var/lib/postgresql/data
+
+volumes:
+  pos_postgres_data:

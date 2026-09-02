@@ -1,0 +1,11 @@
+version: "2"
+
+sql:
+  - engine: "postgresql"
+    queries: "../internal/order/repository/queries"
+    schema: "../migrations"
+    gen:
+      go:
+        package: "orderdb"
+        out: "../internal/order/repository/generated"
+        sql_package: "pgx/v5"
