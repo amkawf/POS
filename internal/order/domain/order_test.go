@@ -172,3 +172,67 @@ func TestOrderCannotOpenTwice(t *testing.T) {
 		)
 	}
 }
+
+func TestOrderComplete(t *testing.T) {
+	order, err := NewOrder(
+		uuid.New(),
+		uuid.New(),
+		"ORD-001",
+		OrderTypeDineIn,
+		OrderSourcePOS,
+		nil,
+	)
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+
+	_ = order.AddItem(uuid.New(), "Nasi Goreng", "FOOD-001", 1, 25000)
+	_ = order.Open()
+
+	notes := "Paid with CASH"
+	err = order.Complete(&notes)
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+
+	if order.Status != OrderStatusCompleted {
+		t.Fatalf("expected status %s, got %s", OrderStatusCompleted, order.Status)
+	}
+
+	if order.CompletedAt == nil {
+		t.Fatalf("expected CompletedAt to be set")
+	}
+
+	if order.Notes == nil || *order.Notes != notes {
+		t.Fatalf("expected notes %s, got %v", notes, order.Notes)
+	}
+
+	// Completing again should fail
+	err = order.Complete(nil)
+	if err != ErrInvalidOrderTransition {
+		t.Fatalf("expected ErrInvalidOrderTransition, got %v", err)
+	}
+}
+
+func TestOrderCanDelete(t *testing.T) {
+	order, _ := NewOrder(
+		uuid.New(),
+		uuid.New(),
+		"ORD-001",
+		OrderTypeDineIn,
+		OrderSourcePOS,
+		nil,
+	)
+	_ = order.AddItem(uuid.New(), "Nasi Goreng", "FOOD-001", 1, 25000)
+	_ = order.Open()
+
+	if err := order.CanDelete(); err != nil {
+		t.Fatalf("expected open order to be deletable, got %v", err)
+	}
+
+	_ = order.Complete(nil)
+
+	if err := order.CanDelete(); err != ErrOrderAlreadyCompleted {
+		t.Fatalf("expected ErrOrderAlreadyCompleted, got %v", err)
+	}
+}

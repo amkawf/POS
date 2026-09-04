@@ -2,6 +2,9 @@ package application
 
 import (
 	"context"
+	"fmt"
+	"strings"
+	"time"
 
 	"github.com/google/uuid"
 
@@ -13,7 +16,6 @@ type CreateOrderInput struct {
 	CompanyID uuid.UUID
 	StoreID   uuid.UUID
 
-	OrderNumber string
 	OrderType   domain.OrderType
 	OrderSource domain.OrderSource
 
@@ -53,7 +55,7 @@ func (uc *CreateOrderUseCase) Execute(
 	order, err := domain.NewOrder(
 		input.CompanyID,
 		input.StoreID,
-		input.OrderNumber,
+		generateOrderNumber(),
 		input.OrderType,
 		input.OrderSource,
 		input.CreatedBy,
@@ -86,4 +88,13 @@ func (uc *CreateOrderUseCase) Execute(
 	}
 
 	return order, nil
+}
+
+// generateOrderNumber produces a human-scannable, collision-resistant order
+// number without a per-store sequence/lock. A true sequential daily counter
+// (e.g. ORD-20260903-001) needs a locking strategy that is not yet decided
+// (see CLAUDE.md deferred: detailed transaction isolation/locking).
+func generateOrderNumber() string {
+	suffix := strings.ToUpper(strings.ReplaceAll(uuid.New().String(), "-", "")[:8])
+	return fmt.Sprintf("ORD-%s-%s", time.Now().UTC().Format("20060102"), suffix)
 }

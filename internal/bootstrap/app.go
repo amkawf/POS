@@ -9,10 +9,14 @@ import (
 	"pos-backend/internal/config"
 	"pos-backend/internal/database"
 	httpserver "pos-backend/internal/http"
+	menuapplication "pos-backend/internal/menu/application"
+	menuhttp "pos-backend/internal/menu/http"
+	menurepository "pos-backend/internal/menu/repository"
+	menudb "pos-backend/internal/menu/repository/generated"
 	"pos-backend/internal/order/application"
-	orderdb "pos-backend/internal/order/repository/generated"
+	orderhttp "pos-backend/internal/order/http"
 	"pos-backend/internal/order/repository"
-	
+	orderdb "pos-backend/internal/order/repository/generated"
 )
 
 type App struct {
@@ -53,11 +57,44 @@ func New(
 	createOrderUseCase := application.NewCreateOrderUseCase(
 		orderRepository,
 	)
+	listOrdersUseCase := application.NewListOrdersUseCase(
+		orderRepository,
+	)
+	getOrderUseCase := application.NewGetOrderUseCase(
+		orderRepository,
+	)
+	payOrderUseCase := application.NewPayOrderUseCase(
+		orderRepository,
+	)
+	deleteOrderUseCase := application.NewDeleteOrderUseCase(
+		orderRepository,
+	)
+
+	// Order HTTP handler.
+	orderHandler := orderhttp.NewHandler(
+		createOrderUseCase,
+		listOrdersUseCase,
+		getOrderUseCase,
+		payOrderUseCase,
+		deleteOrderUseCase,
+	)
+
+	// Menu repository, use case and HTTP handler.
+	menuQueries := menudb.New(db)
+	menuItemRepository := menurepository.NewPostgresMenuItemRepository(menuQueries)
+	listMenuItemsUseCase := menuapplication.NewListMenuItemsUseCase(menuItemRepository)
+	menuHandler := menuhttp.NewHandler(listMenuItemsUseCase)
 
 	// HTTP router.
 	router := httpserver.NewRouter()
 
-	_ = createOrderUseCase
+	apiV1 := router.Group("/api/v1")
+	apiV1.POST("/orders", orderHandler.CreateOrder)
+	apiV1.GET("/orders", orderHandler.ListOrders)
+	apiV1.GET("/orders/:id", orderHandler.GetOrder)
+	apiV1.POST("/orders/:id/pay", orderHandler.PayOrder)
+	apiV1.DELETE("/orders/:id", orderHandler.DeleteOrder)
+	apiV1.GET("/menu-items", menuHandler.ListMenuItems)
 
 	return &App{
 		Router:   router,

@@ -87,6 +87,7 @@ var (
 	ErrInvalidItemPrice       = errors.New("invalid item price")
 	ErrOrderNotEditable       = errors.New("order is not editable")
 	ErrInvalidOrderTransition = errors.New("invalid order status transition")
+	ErrOrderAlreadyCompleted  = errors.New("cannot modify or delete completed order")
 )
 
 func NewOrder(
@@ -219,4 +220,27 @@ func (o *Order) recalculateTotals() {
 			o.ServiceAmount
 
 	o.UpdatedAt = time.Now()
+}
+
+func (o *Order) Complete(notes *string) error {
+	if o.Status != OrderStatusOpen && o.Status != OrderStatusDraft {
+		return ErrInvalidOrderTransition
+	}
+
+	now := time.Now()
+	o.Status = OrderStatusCompleted
+	o.CompletedAt = &now
+	if notes != nil && *notes != "" {
+		o.Notes = notes
+	}
+	o.UpdatedAt = now
+
+	return nil
+}
+
+func (o *Order) CanDelete() error {
+	if o.Status == OrderStatusCompleted {
+		return ErrOrderAlreadyCompleted
+	}
+	return nil
 }

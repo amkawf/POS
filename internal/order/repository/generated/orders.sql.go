@@ -180,3 +180,278 @@ func (q *Queries) CreateOrderItem(ctx context.Context, arg CreateOrderItemParams
 	)
 	return err
 }
+
+const deleteOrder = `-- name: DeleteOrder :exec
+DELETE FROM orders
+WHERE company_id = $1
+  AND store_id = $2
+  AND id = $3
+`
+
+type DeleteOrderParams struct {
+	CompanyID pgtype.UUID
+	StoreID   pgtype.UUID
+	ID        pgtype.UUID
+}
+
+func (q *Queries) DeleteOrder(ctx context.Context, arg DeleteOrderParams) error {
+	_, err := q.db.Exec(ctx, deleteOrder, arg.CompanyID, arg.StoreID, arg.ID)
+	return err
+}
+
+const deleteOrderItemsByOrderID = `-- name: DeleteOrderItemsByOrderID :exec
+DELETE FROM order_items
+WHERE order_id = $1
+`
+
+func (q *Queries) DeleteOrderItemsByOrderID(ctx context.Context, orderID pgtype.UUID) error {
+	_, err := q.db.Exec(ctx, deleteOrderItemsByOrderID, orderID)
+	return err
+}
+
+const getOrderByID = `-- name: GetOrderByID :one
+SELECT id, company_id, store_id, table_id, customer_session_id, order_number, order_type, order_source, status, customer_name, subtotal, discount_amount, tax_amount, service_amount, total_amount, notes, opened_at, completed_at, cancelled_at, created_by, created_at, updated_at
+FROM orders
+WHERE company_id = $1
+  AND store_id = $2
+  AND id = $3
+`
+
+type GetOrderByIDParams struct {
+	CompanyID pgtype.UUID
+	StoreID   pgtype.UUID
+	ID        pgtype.UUID
+}
+
+func (q *Queries) GetOrderByID(ctx context.Context, arg GetOrderByIDParams) (Order, error) {
+	row := q.db.QueryRow(ctx, getOrderByID, arg.CompanyID, arg.StoreID, arg.ID)
+	var i Order
+	err := row.Scan(
+		&i.ID,
+		&i.CompanyID,
+		&i.StoreID,
+		&i.TableID,
+		&i.CustomerSessionID,
+		&i.OrderNumber,
+		&i.OrderType,
+		&i.OrderSource,
+		&i.Status,
+		&i.CustomerName,
+		&i.Subtotal,
+		&i.DiscountAmount,
+		&i.TaxAmount,
+		&i.ServiceAmount,
+		&i.TotalAmount,
+		&i.Notes,
+		&i.OpenedAt,
+		&i.CompletedAt,
+		&i.CancelledAt,
+		&i.CreatedBy,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const listOrderItemsByOrderID = `-- name: ListOrderItemsByOrderID :many
+SELECT id, order_id, menu_item_id, item_name, sku, quantity, unit_price, modifier_amount, discount_amount, tax_amount, total_amount, notes, status, created_at, updated_at
+FROM order_items
+WHERE order_id = $1
+ORDER BY created_at ASC
+`
+
+func (q *Queries) ListOrderItemsByOrderID(ctx context.Context, orderID pgtype.UUID) ([]OrderItem, error) {
+	rows, err := q.db.Query(ctx, listOrderItemsByOrderID, orderID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []OrderItem
+	for rows.Next() {
+		var i OrderItem
+		if err := rows.Scan(
+			&i.ID,
+			&i.OrderID,
+			&i.MenuItemID,
+			&i.ItemName,
+			&i.Sku,
+			&i.Quantity,
+			&i.UnitPrice,
+			&i.ModifierAmount,
+			&i.DiscountAmount,
+			&i.TaxAmount,
+			&i.TotalAmount,
+			&i.Notes,
+			&i.Status,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listOrdersByStatus = `-- name: ListOrdersByStatus :many
+SELECT id, company_id, store_id, table_id, customer_session_id, order_number, order_type, order_source, status, customer_name, subtotal, discount_amount, tax_amount, service_amount, total_amount, notes, opened_at, completed_at, cancelled_at, created_by, created_at, updated_at
+FROM orders
+WHERE company_id = $1
+  AND store_id = $2
+  AND status = $3
+ORDER BY opened_at DESC
+LIMIT $4
+`
+
+type ListOrdersByStatusParams struct {
+	CompanyID pgtype.UUID
+	StoreID   pgtype.UUID
+	Status    string
+	Limit     int32
+}
+
+func (q *Queries) ListOrdersByStatus(ctx context.Context, arg ListOrdersByStatusParams) ([]Order, error) {
+	rows, err := q.db.Query(ctx, listOrdersByStatus,
+		arg.CompanyID,
+		arg.StoreID,
+		arg.Status,
+		arg.Limit,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Order
+	for rows.Next() {
+		var i Order
+		if err := rows.Scan(
+			&i.ID,
+			&i.CompanyID,
+			&i.StoreID,
+			&i.TableID,
+			&i.CustomerSessionID,
+			&i.OrderNumber,
+			&i.OrderType,
+			&i.OrderSource,
+			&i.Status,
+			&i.CustomerName,
+			&i.Subtotal,
+			&i.DiscountAmount,
+			&i.TaxAmount,
+			&i.ServiceAmount,
+			&i.TotalAmount,
+			&i.Notes,
+			&i.OpenedAt,
+			&i.CompletedAt,
+			&i.CancelledAt,
+			&i.CreatedBy,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listOrdersByStore = `-- name: ListOrdersByStore :many
+SELECT id, company_id, store_id, table_id, customer_session_id, order_number, order_type, order_source, status, customer_name, subtotal, discount_amount, tax_amount, service_amount, total_amount, notes, opened_at, completed_at, cancelled_at, created_by, created_at, updated_at
+FROM orders
+WHERE company_id = $1
+  AND store_id = $2
+ORDER BY opened_at DESC
+LIMIT $3
+`
+
+type ListOrdersByStoreParams struct {
+	CompanyID pgtype.UUID
+	StoreID   pgtype.UUID
+	Limit     int32
+}
+
+func (q *Queries) ListOrdersByStore(ctx context.Context, arg ListOrdersByStoreParams) ([]Order, error) {
+	rows, err := q.db.Query(ctx, listOrdersByStore, arg.CompanyID, arg.StoreID, arg.Limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Order
+	for rows.Next() {
+		var i Order
+		if err := rows.Scan(
+			&i.ID,
+			&i.CompanyID,
+			&i.StoreID,
+			&i.TableID,
+			&i.CustomerSessionID,
+			&i.OrderNumber,
+			&i.OrderType,
+			&i.OrderSource,
+			&i.Status,
+			&i.CustomerName,
+			&i.Subtotal,
+			&i.DiscountAmount,
+			&i.TaxAmount,
+			&i.ServiceAmount,
+			&i.TotalAmount,
+			&i.Notes,
+			&i.OpenedAt,
+			&i.CompletedAt,
+			&i.CancelledAt,
+			&i.CreatedBy,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const updateOrder = `-- name: UpdateOrder :exec
+UPDATE orders
+SET status = $4,
+    completed_at = $5,
+    cancelled_at = $6,
+    notes = COALESCE($7, notes),
+    updated_at = $8
+WHERE company_id = $1
+  AND store_id = $2
+  AND id = $3
+`
+
+type UpdateOrderParams struct {
+	CompanyID   pgtype.UUID
+	StoreID     pgtype.UUID
+	ID          pgtype.UUID
+	Status      string
+	CompletedAt pgtype.Timestamptz
+	CancelledAt pgtype.Timestamptz
+	Notes       pgtype.Text
+	UpdatedAt   pgtype.Timestamptz
+}
+
+func (q *Queries) UpdateOrder(ctx context.Context, arg UpdateOrderParams) error {
+	_, err := q.db.Exec(ctx, updateOrder,
+		arg.CompanyID,
+		arg.StoreID,
+		arg.ID,
+		arg.Status,
+		arg.CompletedAt,
+		arg.CancelledAt,
+		arg.Notes,
+		arg.UpdatedAt,
+	)
+	return err
+}

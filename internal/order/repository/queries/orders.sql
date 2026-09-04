@@ -77,3 +77,54 @@ INSERT INTO order_items (
     $14,
     $15
 );
+
+-- name: GetOrderByID :one
+SELECT *
+FROM orders
+WHERE company_id = $1
+  AND store_id = $2
+  AND id = $3;
+
+-- name: ListOrdersByStore :many
+SELECT *
+FROM orders
+WHERE company_id = $1
+  AND store_id = $2
+ORDER BY opened_at DESC
+LIMIT $3;
+
+-- name: ListOrdersByStatus :many
+SELECT *
+FROM orders
+WHERE company_id = $1
+  AND store_id = $2
+  AND status = $3
+ORDER BY opened_at DESC
+LIMIT $4;
+
+-- name: ListOrderItemsByOrderID :many
+SELECT *
+FROM order_items
+WHERE order_id = $1
+ORDER BY created_at ASC;
+
+-- name: UpdateOrder :exec
+UPDATE orders
+SET status = $4,
+    completed_at = $5,
+    cancelled_at = $6,
+    notes = COALESCE($7, notes),
+    updated_at = $8
+WHERE company_id = $1
+  AND store_id = $2
+  AND id = $3;
+
+-- name: DeleteOrderItemsByOrderID :exec
+DELETE FROM order_items
+WHERE order_id = $1;
+
+-- name: DeleteOrder :exec
+DELETE FROM orders
+WHERE company_id = $1
+  AND store_id = $2
+  AND id = $3;

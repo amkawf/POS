@@ -1,6 +1,11 @@
 package repository
 
-import "testing"
+import (
+	"math/big"
+	"testing"
+
+	"github.com/jackc/pgx/v5/pgtype"
+)
 
 func TestInt64ToNumeric(t *testing.T) {
 	tests := []struct {
@@ -80,6 +85,38 @@ func TestNumericToInt64(t *testing.T) {
 				)
 			}
 		})
+	}
+}
+
+func TestNumericToInt64ScaledExponent(t *testing.T) {
+	// Reflects how Postgres actually sends NUMERIC(15,2) over the wire,
+	// e.g. 28000.00 decoded as Int=2800000, Exp=-2 — not Exp=0 like
+	// int64ToNumeric produces locally.
+	numeric := pgtype.Numeric{
+		Int:   big.NewInt(2800000),
+		Exp:   -2,
+		Valid: true,
+	}
+
+	result, err := numericToInt64(numeric)
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+
+	if result != 28000 {
+		t.Fatalf("expected 28000, got %d", result)
+	}
+}
+
+func TestNumericToInt64FractionalRejected(t *testing.T) {
+	numeric := pgtype.Numeric{
+		Int:   big.NewInt(280005),
+		Exp:   -2,
+		Valid: true,
+	}
+
+	if _, err := numericToInt64(numeric); err == nil {
+		t.Fatal("expected error for a value with a fractional remainder")
 	}
 }
 
