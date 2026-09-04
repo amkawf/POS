@@ -9,3 +9,11 @@ sql:
         package: "orderdb"
         out: "../internal/order/repository/generated"
         sql_package: "pgx/v5"
+  - engine: "postgresql"
+    queries: "../internal/menu/repository/queries"
+    schema: "../migrations"
+    gen:
+      go:
+        package: "menudb"
+        out: "../internal/menu/repository/generated"
+        sql_package: "pgx/v5"
