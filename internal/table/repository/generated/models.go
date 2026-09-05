@@ -20,6 +20,38 @@ type Company struct {
 	UpdatedAt    pgtype.Timestamptz
 }
 
+type KitchenTicket struct {
+	ID          pgtype.UUID
+	CompanyID   pgtype.UUID
+	StoreID     pgtype.UUID
+	OrderID     pgtype.UUID
+	OrderNumber string
+	OrderType   string
+	TableID     pgtype.UUID
+	Status      string
+	Priority    string
+	Notes       pgtype.Text
+	CreatedAt   pgtype.Timestamptz
+	UpdatedAt   pgtype.Timestamptz
+	StartedAt   pgtype.Timestamptz
+	ReadyAt     pgtype.Timestamptz
+	ServedAt    pgtype.Timestamptz
+}
+
+type KitchenTicketItem struct {
+	ID          pgtype.UUID
+	TicketID    pgtype.UUID
+	OrderItemID pgtype.UUID
+	MenuItemID  pgtype.UUID
+	ItemName    string
+	Sku         string
+	Quantity    pgtype.Numeric
+	Notes       pgtype.Text
+	Status      string
+	CreatedAt   pgtype.Timestamptz
+	UpdatedAt   pgtype.Timestamptz
+}
+
 type Menu struct {
 	ID        pgtype.UUID
 	CompanyID pgtype.UUID

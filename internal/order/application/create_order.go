@@ -37,15 +37,28 @@ type CreateOrderItemInput struct {
 	UnitPrice int64
 }
 
+type KitchenTicketCreator interface {
+	CreateTicket(
+		ctx context.Context,
+		companyID, storeID, orderID uuid.UUID,
+		orderNumber, orderType string,
+		tableID *uuid.UUID,
+		items []CreateOrderItemInput,
+	) error
+}
+
 type CreateOrderUseCase struct {
 	orderRepository repository.OrderRepository
+	kitchenCreator  KitchenTicketCreator
 }
 
 func NewCreateOrderUseCase(
 	orderRepository repository.OrderRepository,
+	kitchenCreator KitchenTicketCreator,
 ) *CreateOrderUseCase {
 	return &CreateOrderUseCase{
 		orderRepository: orderRepository,
+		kitchenCreator:  kitchenCreator,
 	}
 }
 
@@ -87,6 +100,19 @@ func (uc *CreateOrderUseCase) Execute(
 
 	if err := uc.orderRepository.Create(ctx, order); err != nil {
 		return nil, err
+	}
+
+	if uc.kitchenCreator != nil {
+		_ = uc.kitchenCreator.CreateTicket(
+			ctx,
+			order.CompanyID,
+			order.StoreID,
+			order.ID,
+			order.OrderNumber,
+			string(order.OrderType),
+			order.TableID,
+			input.Items,
+		)
 	}
 
 	return order, nil

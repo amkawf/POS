@@ -25,3 +25,11 @@ sql:
         package: "tabledb"
         out: "../internal/table/repository/generated"
         sql_package: "pgx/v5"
+  - engine: "postgresql"
+    queries: "../internal/kitchen/repository/queries"
+    schema: "../migrations"
+    gen:
+      go:
+        package: "kitchendb"
+        out: "../internal/kitchen/repository/generated"
+        sql_package: "pgx/v5"
