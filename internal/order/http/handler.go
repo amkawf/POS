@@ -66,6 +66,7 @@ func (h *Handler) CreateOrder(c *gin.Context) {
 		application.CreateOrderInput{
 			CompanyID:    req.CompanyID,
 			StoreID:      req.StoreID,
+			TableID:      req.TableID,
 			OrderType:    domain.OrderType(req.OrderType),
 			OrderSource:  domain.OrderSource(req.OrderSource),
 			CustomerName: req.CustomerName,
@@ -88,6 +89,7 @@ func (h *Handler) CreateOrder(c *gin.Context) {
 		ID:          order.ID,
 		CompanyID:   order.CompanyID,
 		StoreID:     order.StoreID,
+		TableID:     order.TableID,
 		OrderNumber: order.OrderNumber,
 		Status:      string(order.Status),
 		Subtotal:    order.Subtotal,
@@ -369,6 +371,7 @@ func toOrderResponse(order *domain.Order) OrderResponse {
 		ID:             order.ID,
 		CompanyID:      order.CompanyID,
 		StoreID:        order.StoreID,
+		TableID:        order.TableID,
 		OrderNumber:    order.OrderNumber,
 		OrderType:      string(order.OrderType),
 		OrderSource:    string(order.OrderSource),

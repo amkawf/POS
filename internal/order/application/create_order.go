@@ -15,6 +15,7 @@ import (
 type CreateOrderInput struct {
 	CompanyID uuid.UUID
 	StoreID   uuid.UUID
+	TableID   *uuid.UUID
 
 	OrderType   domain.OrderType
 	OrderSource domain.OrderSource
@@ -66,6 +67,7 @@ func (uc *CreateOrderUseCase) Execute(
 
 	order.CustomerName = input.CustomerName
 	order.Notes = input.Notes
+	order.TableID = input.TableID
 
 	for _, item := range input.Items {
 		if err := order.AddItem(

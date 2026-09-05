@@ -121,3 +121,14 @@ type StoreMenuItem struct {
 	CreatedAt     pgtype.Timestamptz
 	UpdatedAt     pgtype.Timestamptz
 }
+
+type Table struct {
+	ID          pgtype.UUID
+	CompanyID   pgtype.UUID
+	StoreID     pgtype.UUID
+	TableNumber string
+	Capacity    int32
+	Status      string
+	CreatedAt   pgtype.Timestamptz
+	UpdatedAt   pgtype.Timestamptz
+}

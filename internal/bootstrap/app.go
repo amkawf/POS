@@ -17,6 +17,10 @@ import (
 	orderhttp "pos-backend/internal/order/http"
 	"pos-backend/internal/order/repository"
 	orderdb "pos-backend/internal/order/repository/generated"
+	tableapplication "pos-backend/internal/table/application"
+	tablehttp "pos-backend/internal/table/http"
+	tablerepository "pos-backend/internal/table/repository"
+	tabledb "pos-backend/internal/table/repository/generated"
 )
 
 type App struct {
@@ -87,6 +91,12 @@ func New(
 	listCategoriesUseCase := menuapplication.NewListCategoriesUseCase(categoryRepository)
 	menuHandler := menuhttp.NewHandler(listMenuItemsUseCase, listCategoriesUseCase)
 
+	// Table repository, use case and HTTP handler.
+	tableQueries := tabledb.New(db)
+	tableRepository := tablerepository.NewPostgresTableRepository(tableQueries)
+	listTablesUseCase := tableapplication.NewListTablesUseCase(tableRepository)
+	tableHandler := tablehttp.NewHandler(listTablesUseCase)
+
 	// HTTP router.
 	router := httpserver.NewRouter()
 
@@ -98,6 +108,7 @@ func New(
 	apiV1.DELETE("/orders/:id", orderHandler.DeleteOrder)
 	apiV1.GET("/menu-items", menuHandler.ListMenuItems)
 	apiV1.GET("/menu-categories", menuHandler.ListCategories)
+	apiV1.GET("/tables", tableHandler.ListTables)
 
 	return &App{
 		Router:   router,

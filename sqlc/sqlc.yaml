@@ -17,3 +17,11 @@ sql:
         package: "menudb"
         out: "../internal/menu/repository/generated"
         sql_package: "pgx/v5"
+  - engine: "postgresql"
+    queries: "../internal/table/repository/queries"
+    schema: "../migrations"
+    gen:
+      go:
+        package: "tabledb"
+        out: "../internal/table/repository/generated"
+        sql_package: "pgx/v5"

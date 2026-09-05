@@ -16,6 +16,7 @@ INSERT INTO orders (
     id,
     company_id,
     store_id,
+    table_id,
     order_number,
     order_type,
     order_source,
@@ -53,7 +54,8 @@ INSERT INTO orders (
     $17,
     $18,
     $19,
-    $20
+    $20,
+    $21
 )
 `
 
@@ -61,6 +63,7 @@ type CreateOrderParams struct {
 	ID             pgtype.UUID
 	CompanyID      pgtype.UUID
 	StoreID        pgtype.UUID
+	TableID        pgtype.UUID
 	OrderNumber    string
 	OrderType      string
 	OrderSource    string
@@ -85,6 +88,7 @@ func (q *Queries) CreateOrder(ctx context.Context, arg CreateOrderParams) error 
 		arg.ID,
 		arg.CompanyID,
 		arg.StoreID,
+		arg.TableID,
 		arg.OrderNumber,
 		arg.OrderType,
 		arg.OrderSource,

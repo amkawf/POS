@@ -3,6 +3,7 @@ INSERT INTO orders (
     id,
     company_id,
     store_id,
+    table_id,
     order_number,
     order_type,
     order_source,
@@ -40,7 +41,8 @@ INSERT INTO orders (
     $17,
     $18,
     $19,
-    $20
+    $20,
+    $21
 );
 
 -- name: CreateOrderItem :exec

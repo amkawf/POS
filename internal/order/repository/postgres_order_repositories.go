@@ -43,6 +43,7 @@ func (r *PostgresOrderRepository) Create(
 					ID:             uuidToPgtype(order.ID),
 					CompanyID:      uuidToPgtype(order.CompanyID),
 					StoreID:        uuidToPgtype(order.StoreID),
+					TableID:        nullableUUIDToPgtype(order.TableID),
 					OrderNumber:    order.OrderNumber,
 					OrderType:      string(order.OrderType),
 					OrderSource:    string(order.OrderSource),
