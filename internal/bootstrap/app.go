@@ -82,8 +82,10 @@ func New(
 	// Menu repository, use case and HTTP handler.
 	menuQueries := menudb.New(db)
 	menuItemRepository := menurepository.NewPostgresMenuItemRepository(menuQueries)
+	categoryRepository := menurepository.NewPostgresCategoryRepository(menuQueries)
 	listMenuItemsUseCase := menuapplication.NewListMenuItemsUseCase(menuItemRepository)
-	menuHandler := menuhttp.NewHandler(listMenuItemsUseCase)
+	listCategoriesUseCase := menuapplication.NewListCategoriesUseCase(categoryRepository)
+	menuHandler := menuhttp.NewHandler(listMenuItemsUseCase, listCategoriesUseCase)
 
 	// HTTP router.
 	router := httpserver.NewRouter()
@@ -95,6 +97,7 @@ func New(
 	apiV1.POST("/orders/:id/pay", orderHandler.PayOrder)
 	apiV1.DELETE("/orders/:id", orderHandler.DeleteOrder)
 	apiV1.GET("/menu-items", menuHandler.ListMenuItems)
+	apiV1.GET("/menu-categories", menuHandler.ListCategories)
 
 	return &App{
 		Router:   router,

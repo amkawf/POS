@@ -10,4 +10,5 @@ type MenuItem struct {
 	Description *string
 	BasePrice   int64
 	Status      string
+	CategoryIDs []uuid.UUID
 }
