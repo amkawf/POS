@@ -1,7 +1,6 @@
 package config
 
 import (
-	"fmt"
 	"os"
 )
 
@@ -20,34 +19,25 @@ type DatabaseConfig struct {
 	Password string
 }
 
+func getEnv(key, fallback string) string {
+	if val := os.Getenv(key); val != "" {
+		return val
+	}
+	return fallback
+}
+
 func Load() (Config, error) {
 	cfg := Config{
-		AppEnv:  os.Getenv("APP_ENV"),
-		AppPort: os.Getenv("APP_PORT"),
+		AppEnv:  getEnv("APP_ENV", "development"),
+		AppPort: getEnv("APP_PORT", "8080"),
 
 		Database: DatabaseConfig{
-			Host:     os.Getenv("DATABASE_HOST"),
-			Port:     os.Getenv("DATABASE_PORT"),
-			Name:     os.Getenv("DATABASE_NAME"),
-			User:     os.Getenv("DATABASE_USER"),
-			Password: os.Getenv("DATABASE_PASSWORD"),
+			Host:     getEnv("DATABASE_HOST", "localhost"),
+			Port:     getEnv("DATABASE_PORT", "5433"),
+			Name:     getEnv("DATABASE_NAME", "pos"),
+			User:     getEnv("DATABASE_USER", "pos"),
+			Password: getEnv("DATABASE_PASSWORD", "pos_dev_password"),
 		},
-	}
-
-	if cfg.AppEnv == "" {
-		cfg.AppEnv = "development"
-	}
-
-	if cfg.AppPort == "" {
-		cfg.AppPort = "8080"
-	}
-
-	if cfg.AppPort == "" {
-		return Config{}, fmt.Errorf("APP_PORT is required")
-	}
-
-	if cfg.Database.Port == "" {
-		cfg.Database.Port = "5432"
 	}
 
 	return cfg, nil
