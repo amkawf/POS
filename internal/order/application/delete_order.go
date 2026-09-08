@@ -15,12 +15,17 @@ type DeleteOrderInput struct {
 }
 
 type DeleteOrderUseCase struct {
-	orderRepo repository.OrderRepository
+	orderRepo    repository.OrderRepository
+	tableUpdater TableStatusUpdater
 }
 
-func NewDeleteOrderUseCase(orderRepo repository.OrderRepository) *DeleteOrderUseCase {
+func NewDeleteOrderUseCase(
+	orderRepo repository.OrderRepository,
+	tableUpdater TableStatusUpdater,
+) *DeleteOrderUseCase {
 	return &DeleteOrderUseCase{
-		orderRepo: orderRepo,
+		orderRepo:    orderRepo,
+		tableUpdater: tableUpdater,
 	}
 }
 
@@ -40,5 +45,13 @@ func (uc *DeleteOrderUseCase) Execute(
 		return err
 	}
 
-	return uc.orderRepo.Delete(ctx, input.CompanyID, input.StoreID, input.OrderID)
+	if err := uc.orderRepo.Delete(ctx, input.CompanyID, input.StoreID, input.OrderID); err != nil {
+		return err
+	}
+
+	if uc.tableUpdater != nil && order.TableID != nil {
+		_ = uc.tableUpdater.UpdateTableStatus(ctx, order.CompanyID, order.StoreID, *order.TableID, "AVAILABLE")
+	}
+
+	return nil
 }

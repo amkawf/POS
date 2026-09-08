@@ -26,12 +26,17 @@ type PayOrderInput struct {
 }
 
 type PayOrderUseCase struct {
-	orderRepo repository.OrderRepository
+	orderRepo    repository.OrderRepository
+	tableUpdater TableStatusUpdater
 }
 
-func NewPayOrderUseCase(orderRepo repository.OrderRepository) *PayOrderUseCase {
+func NewPayOrderUseCase(
+	orderRepo repository.OrderRepository,
+	tableUpdater TableStatusUpdater,
+) *PayOrderUseCase {
 	return &PayOrderUseCase{
-		orderRepo: orderRepo,
+		orderRepo:    orderRepo,
+		tableUpdater: tableUpdater,
 	}
 }
 
@@ -63,6 +68,11 @@ func (uc *PayOrderUseCase) Execute(
 
 	if err := uc.orderRepo.Update(ctx, order); err != nil {
 		return nil, err
+	}
+
+	// Release table back to AVAILABLE
+	if uc.tableUpdater != nil && order.TableID != nil {
+		_ = uc.tableUpdater.UpdateTableStatus(ctx, order.CompanyID, order.StoreID, *order.TableID, "AVAILABLE")
 	}
 
 	return order, nil

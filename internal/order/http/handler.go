@@ -2,14 +2,13 @@ package orderhttp
 
 import (
 	"net/http"
-	"strconv"
 	"time"
 
 	"github.com/gin-gonic/gin"
-	"github.com/google/uuid"
 
 	"pos-backend/internal/order/application"
 	"pos-backend/internal/order/domain"
+	"pos-backend/internal/pkg/httputil"
 )
 
 type Handler struct {
@@ -36,21 +35,23 @@ func NewHandler(
 	}
 }
 
+// RegisterRoutes registers the order module routes to the provided router group.
+func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
+	rg.POST("/orders", h.CreateOrder)
+	rg.GET("/orders", h.ListOrders)
+	rg.GET("/orders/:id", h.GetOrder)
+	rg.POST("/orders/:id/pay", h.PayOrder)
+	rg.DELETE("/orders/:id", h.DeleteOrder)
+}
+
 func (h *Handler) CreateOrder(c *gin.Context) {
 	var req CreateOrderRequest
-
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"error": gin.H{
-				"code":    "INVALID_REQUEST",
-				"message": err.Error(),
-			},
-		})
+		httputil.BadRequest(c, "INVALID_REQUEST", err.Error())
 		return
 	}
 
 	items := make([]application.CreateOrderItemInput, 0, len(req.Items))
-
 	for _, item := range req.Items {
 		items = append(items, application.CreateOrderItemInput{
 			MenuItemID: item.MenuItemID,
@@ -76,16 +77,11 @@ func (h *Handler) CreateOrder(c *gin.Context) {
 		},
 	)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"error": gin.H{
-				"code":    "CREATE_ORDER_FAILED",
-				"message": err.Error(),
-			},
-		})
+		httputil.BadRequest(c, "CREATE_ORDER_FAILED", err.Error())
 		return
 	}
 
-	c.JSON(http.StatusCreated, CreateOrderResponse{
+	httputil.JSON(c, http.StatusCreated, CreateOrderResponse{
 		ID:          order.ID,
 		CompanyID:   order.CompanyID,
 		StoreID:     order.StoreID,
@@ -98,41 +94,18 @@ func (h *Handler) CreateOrder(c *gin.Context) {
 }
 
 func (h *Handler) ListOrders(c *gin.Context) {
-	companyIDStr := c.Query("company_id")
-	companyID, err := uuid.Parse(companyIDStr)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"error": gin.H{
-				"code":    "INVALID_COMPANY_ID",
-				"message": "valid company_id query parameter is required",
-			},
-		})
+	companyID, ok := httputil.ParseUUIDQuery(c, "company_id")
+	if !ok {
 		return
 	}
 
-	storeIDStr := c.Query("store_id")
-	storeID, err := uuid.Parse(storeIDStr)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"error": gin.H{
-				"code":    "INVALID_STORE_ID",
-				"message": "valid store_id query parameter is required",
-			},
-		})
+	storeID, ok := httputil.ParseUUIDQuery(c, "store_id")
+	if !ok {
 		return
 	}
 
-	var status *string
-	if s := c.Query("status"); s != "" {
-		status = &s
-	}
-
-	limit := int32(50)
-	if l := c.Query("limit"); l != "" {
-		if parsedLimit, err := strconv.Atoi(l); err == nil && parsedLimit > 0 {
-			limit = int32(parsedLimit)
-		}
-	}
+	status := httputil.ParseOptStringQuery(c, "status")
+	limit := httputil.ParseIntQuery(c, "limit", 50)
 
 	orders, err := h.listOrdersUseCase.Execute(c.Request.Context(), application.ListOrdersInput{
 		CompanyID: companyID,
@@ -141,12 +114,7 @@ func (h *Handler) ListOrders(c *gin.Context) {
 		Limit:     limit,
 	})
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"error": gin.H{
-				"code":    "LIST_ORDERS_FAILED",
-				"message": err.Error(),
-			},
-		})
+		httputil.InternalError(c, "LIST_ORDERS_FAILED", err.Error())
 		return
 	}
 
@@ -155,45 +123,24 @@ func (h *Handler) ListOrders(c *gin.Context) {
 		res = append(res, toOrderResponse(o))
 	}
 
-	c.JSON(http.StatusOK, gin.H{
+	httputil.JSON(c, http.StatusOK, gin.H{
 		"orders": res,
 	})
 }
 
 func (h *Handler) GetOrder(c *gin.Context) {
-	orderIDStr := c.Param("id")
-	orderID, err := uuid.Parse(orderIDStr)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"error": gin.H{
-				"code":    "INVALID_ORDER_ID",
-				"message": "valid order id is required",
-			},
-		})
+	orderID, ok := httputil.ParseUUIDParam(c, "id")
+	if !ok {
 		return
 	}
 
-	companyIDStr := c.Query("company_id")
-	companyID, err := uuid.Parse(companyIDStr)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"error": gin.H{
-				"code":    "INVALID_COMPANY_ID",
-				"message": "valid company_id query parameter is required",
-			},
-		})
+	companyID, ok := httputil.ParseUUIDQuery(c, "company_id")
+	if !ok {
 		return
 	}
 
-	storeIDStr := c.Query("store_id")
-	storeID, err := uuid.Parse(storeIDStr)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"error": gin.H{
-				"code":    "INVALID_STORE_ID",
-				"message": "valid store_id query parameter is required",
-			},
-		})
+	storeID, ok := httputil.ParseUUIDQuery(c, "store_id")
+	if !ok {
 		return
 	}
 
@@ -203,49 +150,27 @@ func (h *Handler) GetOrder(c *gin.Context) {
 		OrderID:   orderID,
 	})
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"error": gin.H{
-				"code":    "GET_ORDER_FAILED",
-				"message": err.Error(),
-			},
-		})
+		httputil.InternalError(c, "GET_ORDER_FAILED", err.Error())
 		return
 	}
 
 	if order == nil {
-		c.JSON(http.StatusNotFound, gin.H{
-			"error": gin.H{
-				"code":    "ORDER_NOT_FOUND",
-				"message": "order not found",
-			},
-		})
+		httputil.NotFound(c, "ORDER_NOT_FOUND", "order not found")
 		return
 	}
 
-	c.JSON(http.StatusOK, toOrderResponse(order))
+	httputil.JSON(c, http.StatusOK, toOrderResponse(order))
 }
 
 func (h *Handler) PayOrder(c *gin.Context) {
-	orderIDStr := c.Param("id")
-	orderID, err := uuid.Parse(orderIDStr)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"error": gin.H{
-				"code":    "INVALID_ORDER_ID",
-				"message": "valid order id is required",
-			},
-		})
+	orderID, ok := httputil.ParseUUIDParam(c, "id")
+	if !ok {
 		return
 	}
 
 	var req PayOrderRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"error": gin.H{
-				"code":    "INVALID_REQUEST",
-				"message": err.Error(),
-			},
-		})
+		httputil.BadRequest(c, "INVALID_REQUEST", err.Error())
 		return
 	}
 
@@ -259,90 +184,49 @@ func (h *Handler) PayOrder(c *gin.Context) {
 	})
 	if err != nil {
 		if err == application.ErrOrderNotFound {
-			c.JSON(http.StatusNotFound, gin.H{
-				"error": gin.H{
-					"code":    "ORDER_NOT_FOUND",
-					"message": err.Error(),
-				},
-			})
+			httputil.NotFound(c, "ORDER_NOT_FOUND", err.Error())
 			return
 		}
 
-		c.JSON(http.StatusBadRequest, gin.H{
-			"error": gin.H{
-				"code":    "PAY_ORDER_FAILED",
-				"message": err.Error(),
-			},
-		})
+		httputil.BadRequest(c, "PAY_ORDER_FAILED", err.Error())
 		return
 	}
 
-	c.JSON(http.StatusOK, toOrderResponse(order))
+	httputil.JSON(c, http.StatusOK, toOrderResponse(order))
 }
 
 func (h *Handler) DeleteOrder(c *gin.Context) {
-	orderIDStr := c.Param("id")
-	orderID, err := uuid.Parse(orderIDStr)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"error": gin.H{
-				"code":    "INVALID_ORDER_ID",
-				"message": "valid order id is required",
-			},
-		})
+	orderID, ok := httputil.ParseUUIDParam(c, "id")
+	if !ok {
 		return
 	}
 
-	companyIDStr := c.Query("company_id")
-	companyID, err := uuid.Parse(companyIDStr)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"error": gin.H{
-				"code":    "INVALID_COMPANY_ID",
-				"message": "valid company_id query parameter is required",
-			},
-		})
+	companyID, ok := httputil.ParseUUIDQuery(c, "company_id")
+	if !ok {
 		return
 	}
 
-	storeIDStr := c.Query("store_id")
-	storeID, err := uuid.Parse(storeIDStr)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"error": gin.H{
-				"code":    "INVALID_STORE_ID",
-				"message": "valid store_id query parameter is required",
-			},
-		})
+	storeID, ok := httputil.ParseUUIDQuery(c, "store_id")
+	if !ok {
 		return
 	}
 
-	err = h.deleteOrderUseCase.Execute(c.Request.Context(), application.DeleteOrderInput{
+	err := h.deleteOrderUseCase.Execute(c.Request.Context(), application.DeleteOrderInput{
 		CompanyID: companyID,
 		StoreID:   storeID,
 		OrderID:   orderID,
 	})
 	if err != nil {
 		if err == application.ErrOrderNotFound {
-			c.JSON(http.StatusNotFound, gin.H{
-				"error": gin.H{
-					"code":    "ORDER_NOT_FOUND",
-					"message": err.Error(),
-				},
-			})
+			httputil.NotFound(c, "ORDER_NOT_FOUND", err.Error())
 			return
 		}
 
-		c.JSON(http.StatusBadRequest, gin.H{
-			"error": gin.H{
-				"code":    "DELETE_ORDER_FAILED",
-				"message": err.Error(),
-			},
-		})
+		httputil.BadRequest(c, "DELETE_ORDER_FAILED", err.Error())
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{
+	httputil.JSON(c, http.StatusOK, gin.H{
 		"message": "order deleted successfully",
 	})
 }

@@ -3,7 +3,6 @@ package repository
 import (
 	"context"
 	"errors"
-	"math/big"
 	"time"
 
 	"github.com/google/uuid"
@@ -13,6 +12,7 @@ import (
 	"pos-backend/internal/database"
 	"pos-backend/internal/kitchen/domain"
 	kitchendb "pos-backend/internal/kitchen/repository/generated"
+	"pos-backend/internal/pkg/pgconv"
 )
 
 type PostgresKitchenRepository struct {
@@ -314,63 +314,12 @@ func toDomainItem(row kitchendb.KitchenTicketItem) domain.KitchenTicketItem {
 	}
 }
 
-func uuidToPg(u uuid.UUID) pgtype.UUID {
-	return pgtype.UUID{Bytes: u, Valid: true}
-}
-
-func optUuidToPg(u *uuid.UUID) pgtype.UUID {
-	if u == nil {
-		return pgtype.UUID{Valid: false}
-	}
-	return pgtype.UUID{Bytes: *u, Valid: true}
-}
-
-func pgToOptUuid(p pgtype.UUID) *uuid.UUID {
-	if !p.Valid {
-		return nil
-	}
-	u := uuid.UUID(p.Bytes)
-	return &u
-}
-
-func textToPg(s *string) pgtype.Text {
-	if s == nil {
-		return pgtype.Text{Valid: false}
-	}
-	return pgtype.Text{String: *s, Valid: true}
-}
-
-func pgToOptText(p pgtype.Text) *string {
-	if !p.Valid {
-		return nil
-	}
-	return &p.String
-}
-
-func timeToPg(t time.Time) pgtype.Timestamptz {
-	return pgtype.Timestamptz{Time: t, Valid: true}
-}
-
-func pgToOptTime(p pgtype.Timestamptz) *time.Time {
-	if !p.Valid {
-		return nil
-	}
-	return &p.Time
-}
-
-func int64ToNumeric(value int64) pgtype.Numeric {
-	return pgtype.Numeric{
-		Int:              big.NewInt(value),
-		Exp:              0,
-		NaN:              false,
-		InfinityModifier: pgtype.Finite,
-		Valid:            true,
-	}
-}
-
-func numericToInt64(value pgtype.Numeric) int64 {
-	if !value.Valid || value.Int == nil {
-		return 0
-	}
-	return value.Int.Int64()
-}
+func uuidToPg(u uuid.UUID) pgtype.UUID            { return pgconv.UUID(u) }
+func optUuidToPg(u *uuid.UUID) pgtype.UUID        { return pgconv.OptUUID(u) }
+func pgToOptUuid(p pgtype.UUID) *uuid.UUID        { return pgconv.ToOptUUID(p) }
+func textToPg(s *string) pgtype.Text              { return pgconv.OptText(s) }
+func pgToOptText(p pgtype.Text) *string           { return pgconv.ToOptText(p) }
+func timeToPg(t time.Time) pgtype.Timestamptz     { return pgconv.Timestamptz(t) }
+func pgToOptTime(p pgtype.Timestamptz) *time.Time { return pgconv.ToOptTime(p) }
+func int64ToNumeric(value int64) pgtype.Numeric   { return pgconv.Int64ToNumeric(value) }
+func numericToInt64(value pgtype.Numeric) int64   { return pgconv.NumericToInt64Safe(value) }

@@ -47,18 +47,25 @@ type KitchenTicketCreator interface {
 	) error
 }
 
+type TableStatusUpdater interface {
+	UpdateTableStatus(ctx context.Context, companyID, storeID, tableID uuid.UUID, status string) error
+}
+
 type CreateOrderUseCase struct {
 	orderRepository repository.OrderRepository
 	kitchenCreator  KitchenTicketCreator
+	tableUpdater    TableStatusUpdater
 }
 
 func NewCreateOrderUseCase(
 	orderRepository repository.OrderRepository,
 	kitchenCreator KitchenTicketCreator,
+	tableUpdater TableStatusUpdater,
 ) *CreateOrderUseCase {
 	return &CreateOrderUseCase{
 		orderRepository: orderRepository,
 		kitchenCreator:  kitchenCreator,
+		tableUpdater:    tableUpdater,
 	}
 }
 
@@ -100,6 +107,11 @@ func (uc *CreateOrderUseCase) Execute(
 
 	if err := uc.orderRepository.Create(ctx, order); err != nil {
 		return nil, err
+	}
+
+	// If order is bound to a table, mark the table as OCCUPIED
+	if uc.tableUpdater != nil && order.TableID != nil {
+		_ = uc.tableUpdater.UpdateTableStatus(ctx, order.CompanyID, order.StoreID, *order.TableID, "OCCUPIED")
 	}
 
 	if uc.kitchenCreator != nil {

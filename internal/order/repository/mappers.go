@@ -8,88 +8,21 @@ import (
 
 	"pos-backend/internal/order/domain"
 	orderdb "pos-backend/internal/order/repository/generated"
+	"pos-backend/internal/pkg/pgconv"
 )
 
-func uuidToPgtype(value uuid.UUID) pgtype.UUID {
-	return pgtype.UUID{
-		Bytes: value,
-		Valid: true,
-	}
+func uuidToPgtype(value uuid.UUID) pgtype.UUID               { return pgconv.UUID(value) }
+func nullableUUIDToPgtype(value *uuid.UUID) pgtype.UUID      { return pgconv.OptUUID(value) }
+func textToPgtype(value *string) pgtype.Text                 { return pgconv.OptText(value) }
+func timestamptzToPgtype(value time.Time) pgtype.Timestamptz { return pgconv.Timestamptz(value) }
+func nullableTimestamptzToPgtype(value *time.Time) pgtype.Timestamptz {
+	return pgconv.OptTimestamptz(value)
 }
-
-func nullableUUIDToPgtype(value *uuid.UUID) pgtype.UUID {
-	if value == nil {
-		return pgtype.UUID{
-			Valid: false,
-		}
-	}
-
-	return uuidToPgtype(*value)
-}
-
-func textToPgtype(value *string) pgtype.Text {
-	if value == nil {
-		return pgtype.Text{
-			Valid: false,
-		}
-	}
-
-	return pgtype.Text{
-		String: *value,
-		Valid:  true,
-	}
-}
-
-func timestamptzToPgtype(value time.Time) pgtype.Timestamptz {
-	return pgtype.Timestamptz{
-		Time:  value,
-		Valid: true,
-	}
-}
-
-func nullableTimestamptzToPgtype(
-	value *time.Time,
-) pgtype.Timestamptz {
-	if value == nil {
-		return pgtype.Timestamptz{
-			Valid: false,
-		}
-	}
-
-	return timestamptzToPgtype(*value)
-}
-
-func pgtypeToUUID(value pgtype.UUID) uuid.UUID {
-	return uuid.UUID(value.Bytes)
-}
-
-func pgtypeToNullableUUID(value pgtype.UUID) *uuid.UUID {
-	if !value.Valid {
-		return nil
-	}
-	id := uuid.UUID(value.Bytes)
-	return &id
-}
-
-func pgtypeToNullableText(value pgtype.Text) *string {
-	if !value.Valid {
-		return nil
-	}
-	str := value.String
-	return &str
-}
-
-func pgtypeToTime(value pgtype.Timestamptz) time.Time {
-	return value.Time
-}
-
-func pgtypeToNullableTime(value pgtype.Timestamptz) *time.Time {
-	if !value.Valid {
-		return nil
-	}
-	t := value.Time
-	return &t
-}
+func pgtypeToUUID(value pgtype.UUID) uuid.UUID                 { return pgconv.ToUUID(value) }
+func pgtypeToNullableUUID(value pgtype.UUID) *uuid.UUID        { return pgconv.ToOptUUID(value) }
+func pgtypeToNullableText(value pgtype.Text) *string           { return pgconv.ToOptText(value) }
+func pgtypeToTime(value pgtype.Timestamptz) time.Time          { return pgconv.ToTime(value) }
+func pgtypeToNullableTime(value pgtype.Timestamptz) *time.Time { return pgconv.ToOptTime(value) }
 
 func toDomainOrderItem(row orderdb.OrderItem) (domain.OrderItem, error) {
 	qty, err := numericToInt64(row.Quantity)

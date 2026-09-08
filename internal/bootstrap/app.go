@@ -2,6 +2,7 @@ package bootstrap
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
@@ -23,6 +24,7 @@ import (
 	"pos-backend/internal/order/repository"
 	orderdb "pos-backend/internal/order/repository/generated"
 	tableapplication "pos-backend/internal/table/application"
+	tabledomain "pos-backend/internal/table/domain"
 	tablehttp "pos-backend/internal/table/http"
 	tablerepository "pos-backend/internal/table/repository"
 	tabledb "pos-backend/internal/table/repository/generated"
@@ -41,22 +43,29 @@ func New(
 	db, err := database.NewPostgresPool(
 		ctx,
 		database.Config{
+			URL:      cfg.Database.URL,
 			Host:     cfg.Database.Host,
 			Port:     cfg.Database.Port,
 			Name:     cfg.Database.Name,
 			User:     cfg.Database.User,
 			Password: cfg.Database.Password,
+			SSLMode:  cfg.Database.SSLMode,
 		},
 	)
+
 	if err != nil {
 		return nil, err
+	}
+
+	if err := database.Ping(ctx, db); err != nil {
+		return nil, fmt.Errorf("database connection failed: %w", err)
 	}
 
 	// Database infrastructure.
 	queries := orderdb.New(db)
 	txManager := database.NewTransactionManager(db)
 
-	// Kitchen repository, use cases and HTTP handler.
+	// Kitchen tickets repository and use cases.
 	kitchenQueries := kitchendb.New(db)
 	kitchenRepo := kitchenrepository.NewPostgresKitchenRepository(kitchenQueries, txManager)
 	createTicketUseCase := kitchenapplication.NewCreateTicketUseCase(kitchenRepo)
@@ -66,6 +75,14 @@ func New(
 
 	// Adapter to trigger kitchen tickets when orders are created
 	kitchenAdapter := &orderKitchenAdapter{createTicketUseCase: createTicketUseCase}
+
+	// Table repository, use case and HTTP handler.
+	tableQueries := tabledb.New(db)
+	tableRepository := tablerepository.NewPostgresTableRepository(tableQueries)
+	listTablesUseCase := tableapplication.NewListTablesUseCase(tableRepository)
+	updateTableStatusUseCase := tableapplication.NewUpdateTableStatusUseCase(tableRepository)
+	tableHandler := tablehttp.NewHandler(listTablesUseCase, updateTableStatusUseCase)
+	tableAdapter := &orderTableAdapter{tableRepo: tableRepository}
 
 	// Order repository.
 	orderRepository := repository.NewPostgresOrderRepository(
@@ -77,6 +94,7 @@ func New(
 	createOrderUseCase := application.NewCreateOrderUseCase(
 		orderRepository,
 		kitchenAdapter,
+		tableAdapter,
 	)
 	listOrdersUseCase := application.NewListOrdersUseCase(
 		orderRepository,
@@ -86,9 +104,11 @@ func New(
 	)
 	payOrderUseCase := application.NewPayOrderUseCase(
 		orderRepository,
+		tableAdapter,
 	)
 	deleteOrderUseCase := application.NewDeleteOrderUseCase(
 		orderRepository,
+		tableAdapter,
 	)
 
 	// Order HTTP handler.
@@ -108,32 +128,35 @@ func New(
 	listCategoriesUseCase := menuapplication.NewListCategoriesUseCase(categoryRepository)
 	menuHandler := menuhttp.NewHandler(listMenuItemsUseCase, listCategoriesUseCase)
 
-	// Table repository, use case and HTTP handler.
-	tableQueries := tabledb.New(db)
-	tableRepository := tablerepository.NewPostgresTableRepository(tableQueries)
-	listTablesUseCase := tableapplication.NewListTablesUseCase(tableRepository)
-	tableHandler := tablehttp.NewHandler(listTablesUseCase)
-
-	// HTTP router.
-	router := httpserver.NewRouter()
+	// HTTP router and modular route registration.
+	router := httpserver.NewRouter(httpserver.RouterConfig{
+		Database: db,
+		Version:  "1.0.0",
+	})
 
 	apiV1 := router.Group("/api/v1")
-	apiV1.POST("/orders", orderHandler.CreateOrder)
-	apiV1.GET("/orders", orderHandler.ListOrders)
-	apiV1.GET("/orders/:id", orderHandler.GetOrder)
-	apiV1.POST("/orders/:id/pay", orderHandler.PayOrder)
-	apiV1.DELETE("/orders/:id", orderHandler.DeleteOrder)
-	apiV1.GET("/menu-items", menuHandler.ListMenuItems)
-	apiV1.GET("/menu-categories", menuHandler.ListCategories)
-	apiV1.GET("/tables", tableHandler.ListTables)
-	apiV1.GET("/kitchen/tickets", kitchenHandler.ListTickets)
-	apiV1.PATCH("/kitchen/tickets/:id/status", kitchenHandler.UpdateTicketStatus)
+	orderHandler.RegisterRoutes(apiV1)
+	menuHandler.RegisterRoutes(apiV1)
+	tableHandler.RegisterRoutes(apiV1)
+	kitchenHandler.RegisterRoutes(apiV1)
 
 	return &App{
 		Router:   router,
 		Config:   cfg,
 		Database: db,
 	}, nil
+}
+
+type orderTableAdapter struct {
+	tableRepo tablerepository.TableRepository
+}
+
+func (a *orderTableAdapter) UpdateTableStatus(
+	ctx context.Context,
+	companyID, storeID, tableID uuid.UUID,
+	status string,
+) error {
+	return a.tableRepo.UpdateStatus(ctx, companyID, storeID, tableID, tabledomain.TableStatus(status))
 }
 
 type orderKitchenAdapter struct {

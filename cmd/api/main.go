@@ -2,7 +2,7 @@ package main
 
 import (
 	"context"
-	"log"
+	"log/slog"
 	"net/http"
 	"os"
 	"os/signal"
@@ -16,8 +16,24 @@ import (
 func main() {
 	cfg, err := config.Load()
 	if err != nil {
-		log.Fatal(err)
+		slog.Error("failed to load configuration", "error", err)
+		os.Exit(1)
 	}
+
+	// Setup structured logger based on environment
+	var handler slog.Handler
+	opts := &slog.HandlerOptions{
+		Level: slog.LevelInfo,
+	}
+
+	if cfg.AppEnv == "production" {
+		handler = slog.NewJSONHandler(os.Stdout, opts)
+	} else {
+		handler = slog.NewTextHandler(os.Stdout, opts)
+	}
+
+	logger := slog.New(handler)
+	slog.SetDefault(logger)
 
 	ctx, stop := signal.NotifyContext(
 		context.Background(),
@@ -26,45 +42,49 @@ func main() {
 	)
 	defer stop()
 
+	logger.Info("bootstrapping application",
+		slog.String("env", cfg.AppEnv),
+		slog.String("port", cfg.AppPort),
+	)
+
 	app, err := bootstrap.New(ctx, cfg)
 	if err != nil {
-		log.Fatal(err)
+		logger.Error("failed to bootstrap application", "error", err)
+		os.Exit(1)
 	}
 
 	server := &http.Server{
-		Addr:    ":" + app.Config.AppPort,
-		Handler: app.Router,
+		Addr:         ":" + app.Config.AppPort,
+		Handler:      app.Router,
+		ReadTimeout:  15 * time.Second,
+		WriteTimeout: 30 * time.Second,
+		IdleTimeout:  60 * time.Second,
 	}
 
 	go func() {
-		log.Printf(
-			"API server listening on %s",
-			server.Addr,
-		)
+		logger.Info("HTTP server listening", slog.String("addr", server.Addr))
 
-		if err := server.ListenAndServe(); err != nil &&
-			err != http.ErrServerClosed {
-			log.Fatalf("server error: %v", err)
+		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			logger.Error("server fatal error", "error", err)
+			os.Exit(1)
 		}
 	}()
 
 	<-ctx.Done()
 
-	log.Println("shutdown signal received")
+	logger.Info("shutdown signal received, initiating graceful termination...")
 
-	shutdownCtx, cancel := context.WithTimeout(
-		context.Background(),
-		10*time.Second,
-	)
+	shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
 	if err := server.Shutdown(shutdownCtx); err != nil {
-		log.Printf("server shutdown error: %v", err)
+		logger.Error("server shutdown failed", "error", err)
 	}
 
 	if app.Database != nil {
 		app.Database.Close()
+		logger.Info("database pool closed")
 	}
 
-	log.Println("server stopped")
+	logger.Info("server stopped cleanly")
 }

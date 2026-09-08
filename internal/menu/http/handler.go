@@ -7,6 +7,7 @@ import (
 	"github.com/google/uuid"
 
 	"pos-backend/internal/menu/application"
+	"pos-backend/internal/pkg/httputil"
 )
 
 type Handler struct {
@@ -24,26 +25,21 @@ func NewHandler(
 	}
 }
 
+// RegisterRoutes registers the menu module routes to the provided router group.
+func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
+	rg.GET("/menu-items", h.ListMenuItems)
+	rg.GET("/menu-categories", h.ListCategories)
+}
+
 func (h *Handler) ListMenuItems(c *gin.Context) {
-	companyID, err := uuid.Parse(c.Query("company_id"))
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"error": gin.H{
-				"code":    "INVALID_REQUEST",
-				"message": "company_id must be a valid UUID",
-			},
-		})
+	companyID, ok := httputil.ParseUUIDQuery(c, "company_id")
+	if !ok {
 		return
 	}
 
 	items, err := h.listMenuItemsUseCase.Execute(c.Request.Context(), companyID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"error": gin.H{
-				"code":    "LIST_MENU_ITEMS_FAILED",
-				"message": err.Error(),
-			},
-		})
+		httputil.InternalError(c, "LIST_MENU_ITEMS_FAILED", err.Error())
 		return
 	}
 
@@ -67,29 +63,18 @@ func (h *Handler) ListMenuItems(c *gin.Context) {
 		})
 	}
 
-	c.JSON(http.StatusOK, response)
+	httputil.JSON(c, http.StatusOK, response)
 }
 
 func (h *Handler) ListCategories(c *gin.Context) {
-	companyID, err := uuid.Parse(c.Query("company_id"))
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"error": gin.H{
-				"code":    "INVALID_REQUEST",
-				"message": "company_id must be a valid UUID",
-			},
-		})
+	companyID, ok := httputil.ParseUUIDQuery(c, "company_id")
+	if !ok {
 		return
 	}
 
 	categories, err := h.listCategoriesUseCase.Execute(c.Request.Context(), companyID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"error": gin.H{
-				"code":    "LIST_CATEGORIES_FAILED",
-				"message": err.Error(),
-			},
-		})
+		httputil.InternalError(c, "LIST_CATEGORIES_FAILED", err.Error())
 		return
 	}
 
@@ -106,5 +91,5 @@ func (h *Handler) ListCategories(c *gin.Context) {
 		})
 	}
 
-	c.JSON(http.StatusOK, response)
+	httputil.JSON(c, http.StatusOK, response)
 }

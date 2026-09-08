@@ -9,6 +9,7 @@ import (
 
 	"pos-backend/internal/kitchen/application"
 	"pos-backend/internal/kitchen/domain"
+	"pos-backend/internal/pkg/httputil"
 )
 
 type Handler struct {
@@ -26,35 +27,24 @@ func NewHandler(
 	}
 }
 
+// RegisterRoutes registers the kitchen module routes to the provided router group.
+func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
+	rg.GET("/kitchen/tickets", h.ListTickets)
+	rg.PATCH("/kitchen/tickets/:id/status", h.UpdateTicketStatus)
+}
+
 func (h *Handler) ListTickets(c *gin.Context) {
-	companyIDStr := c.Query("company_id")
-	companyID, err := uuid.Parse(companyIDStr)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"error": gin.H{
-				"code":    "INVALID_REQUEST",
-				"message": "company_id must be a valid UUID",
-			},
-		})
+	companyID, ok := httputil.ParseUUIDQuery(c, "company_id")
+	if !ok {
 		return
 	}
 
-	storeIDStr := c.Query("store_id")
-	storeID, err := uuid.Parse(storeIDStr)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"error": gin.H{
-				"code":    "INVALID_REQUEST",
-				"message": "store_id must be a valid UUID",
-			},
-		})
+	storeID, ok := httputil.ParseUUIDQuery(c, "store_id")
+	if !ok {
 		return
 	}
 
-	var status *string
-	if s := c.Query("status"); s != "" {
-		status = &s
-	}
+	status := httputil.ParseOptStringQuery(c, "status")
 
 	tickets, err := h.listTicketsUseCase.Execute(c.Request.Context(), application.ListTicketsInput{
 		CompanyID: companyID,
@@ -62,12 +52,7 @@ func (h *Handler) ListTickets(c *gin.Context) {
 		Status:    status,
 	})
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"error": gin.H{
-				"code":    "LIST_TICKETS_FAILED",
-				"message": err.Error(),
-			},
-		})
+		httputil.InternalError(c, "LIST_TICKETS_FAILED", err.Error())
 		return
 	}
 
@@ -79,52 +64,30 @@ func (h *Handler) ListTickets(c *gin.Context) {
 		response.Tickets = append(response.Tickets, mapTicketToResponse(t))
 	}
 
-	c.JSON(http.StatusOK, response)
+	httputil.JSON(c, http.StatusOK, response)
 }
 
 func (h *Handler) UpdateTicketStatus(c *gin.Context) {
-	ticketIDStr := c.Param("id")
-	ticketID, err := uuid.Parse(ticketIDStr)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"error": gin.H{
-				"code":    "INVALID_REQUEST",
-				"message": "id must be a valid UUID",
-			},
-		})
+	ticketID, ok := httputil.ParseUUIDParam(c, "id")
+	if !ok {
 		return
 	}
 
 	var req UpdateTicketStatusRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"error": gin.H{
-				"code":    "INVALID_REQUEST",
-				"message": err.Error(),
-			},
-		})
+		httputil.BadRequest(c, "INVALID_REQUEST", err.Error())
 		return
 	}
 
 	companyID, err := uuid.Parse(req.CompanyID)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"error": gin.H{
-				"code":    "INVALID_REQUEST",
-				"message": "company_id must be a valid UUID",
-			},
-		})
+		httputil.BadRequest(c, "INVALID_REQUEST", "company_id must be a valid UUID")
 		return
 	}
 
 	storeID, err := uuid.Parse(req.StoreID)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"error": gin.H{
-				"code":    "INVALID_REQUEST",
-				"message": "store_id must be a valid UUID",
-			},
-		})
+		httputil.BadRequest(c, "INVALID_REQUEST", "store_id must be a valid UUID")
 		return
 	}
 
@@ -138,34 +101,19 @@ func (h *Handler) UpdateTicketStatus(c *gin.Context) {
 	})
 	if err != nil {
 		if errors.Is(err, domain.ErrTicketNotFound) {
-			c.JSON(http.StatusNotFound, gin.H{
-				"error": gin.H{
-					"code":    "TICKET_NOT_FOUND",
-					"message": "Kitchen ticket not found",
-				},
-			})
+			httputil.NotFound(c, "TICKET_NOT_FOUND", "Kitchen ticket not found")
 			return
 		}
 		if errors.Is(err, domain.ErrInvalidStatusTransition) || errors.Is(err, domain.ErrTicketAlreadyFinalized) {
-			c.JSON(http.StatusBadRequest, gin.H{
-				"error": gin.H{
-					"code":    "INVALID_STATUS_TRANSITION",
-					"message": err.Error(),
-				},
-			})
+			httputil.BadRequest(c, "INVALID_STATUS_TRANSITION", err.Error())
 			return
 		}
 
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"error": gin.H{
-				"code":    "UPDATE_TICKET_STATUS_FAILED",
-				"message": err.Error(),
-			},
-		})
+		httputil.InternalError(c, "UPDATE_TICKET_STATUS_FAILED", err.Error())
 		return
 	}
 
-	c.JSON(http.StatusOK, mapTicketToResponse(*updated))
+	httputil.JSON(c, http.StatusOK, mapTicketToResponse(*updated))
 }
 
 func mapTicketToResponse(t domain.KitchenTicket) KitchenTicketResponse {

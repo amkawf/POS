@@ -20,3 +20,9 @@ type TableResponse struct {
 type ListTablesResponse struct {
 	Tables []TableResponse `json:"tables"`
 }
+
+type UpdateTableStatusRequest struct {
+	CompanyID uuid.UUID `json:"company_id" binding:"required"`
+	StoreID   uuid.UUID `json:"store_id" binding:"required"`
+	Status    string    `json:"status" binding:"required"`
+}
