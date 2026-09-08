@@ -59,6 +59,7 @@ func (h *Handler) CreateOrder(c *gin.Context) {
 			SKU:        item.SKU,
 			Quantity:   item.Quantity,
 			UnitPrice:  item.UnitPrice,
+			Notes:		item.Notes,
 		})
 	}
 

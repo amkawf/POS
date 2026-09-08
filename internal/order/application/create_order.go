@@ -35,6 +35,7 @@ type CreateOrderItemInput struct {
 
 	Quantity  int64
 	UnitPrice int64
+	Notes *string
 }
 
 type KitchenTicketCreator interface {
@@ -96,6 +97,7 @@ func (uc *CreateOrderUseCase) Execute(
 			item.SKU,
 			item.Quantity,
 			item.UnitPrice,
+			item.Notes,
 		); err != nil {
 			return nil, err
 		}

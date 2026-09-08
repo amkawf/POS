@@ -20,6 +20,7 @@ type CreateOrderItemInput struct {
 	SKU        string    `json:"sku" binding:"required"`
 	Quantity   int64     `json:"quantity" binding:"required,gt=0"`
 	UnitPrice  int64     `json:"unit_price" binding:"gte=0"`
+	Notes	   *string	 `json:"notes"`
 }
 
 type CreateOrderResponse struct {

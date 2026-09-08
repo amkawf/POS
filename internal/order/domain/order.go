@@ -153,6 +153,7 @@ func (o *Order) AddItem(
 	sku string,
 	quantity int64,
 	unitPrice int64,
+	notes *string,
 ) error {
 	if o.Status != OrderStatusDraft &&
 		o.Status != OrderStatusOpen {
@@ -175,6 +176,7 @@ func (o *Order) AddItem(
 		SKU:        sku,
 		Quantity:   quantity,
 		UnitPrice:  unitPrice,
+		Notes:		notes,
 		Status:     "ACTIVE",
 		CreatedAt:  time.Now(),
 		UpdatedAt:  time.Now(),

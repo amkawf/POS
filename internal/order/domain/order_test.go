@@ -52,12 +52,14 @@ func TestOrderAddItem(t *testing.T) {
 		t.Fatalf("expected no error, got %v", err)
 	}
 
+	var notes = "pedes mang"
 	err = order.AddItem(
 		uuid.New(),
 		"Nasi Goreng",
 		"FOOD-001",
 		2,
 		25000,
+		&notes,
 	)
 
 	if err != nil {
@@ -114,6 +116,7 @@ func TestOrderOpen(t *testing.T) {
 		"FOOD-001",
 		1,
 		25000,
+		nil,
 	)
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)
@@ -147,12 +150,14 @@ func TestOrderCannotOpenTwice(t *testing.T) {
 		t.Fatalf("expected no error, got %v", err)
 	}
 
+	var catatan = ""
 	err = order.AddItem(
 		uuid.New(),
 		"Nasi Goreng",
 		"FOOD-001",
 		1,
 		25000,
+		&catatan,
 	)
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)
@@ -186,7 +191,7 @@ func TestOrderComplete(t *testing.T) {
 		t.Fatalf("expected no error, got %v", err)
 	}
 
-	_ = order.AddItem(uuid.New(), "Nasi Goreng", "FOOD-001", 1, 25000)
+	_ = order.AddItem(uuid.New(), "Nasi Goreng", "FOOD-001", 1, 25000, nil)
 	_ = order.Open()
 
 	notes := "Paid with CASH"
@@ -223,7 +228,9 @@ func TestOrderCanDelete(t *testing.T) {
 		OrderSourcePOS,
 		nil,
 	)
-	_ = order.AddItem(uuid.New(), "Nasi Goreng", "FOOD-001", 1, 25000)
+
+	catetan := ""
+	_ = order.AddItem(uuid.New(), "Nasi Goreng", "FOOD-001", 1, 25000, &catetan)
 	_ = order.Open()
 
 	if err := order.CanDelete(); err != nil {
