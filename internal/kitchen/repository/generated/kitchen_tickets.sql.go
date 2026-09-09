@@ -470,10 +470,10 @@ func (q *Queries) UpdateKitchenTicketItemsStatusByTicketID(ctx context.Context, 
 const updateKitchenTicketStatus = `-- name: UpdateKitchenTicketStatus :one
 UPDATE kitchen_tickets
 SET
-    status = $2,
-    started_at = CASE WHEN $2 = 'PREPARING' AND started_at IS NULL THEN NOW() ELSE started_at END,
-    ready_at = CASE WHEN $2 = 'READY' AND ready_at IS NULL THEN NOW() ELSE ready_at END,
-    served_at = CASE WHEN $2 = 'SERVED' AND served_at IS NULL THEN NOW() ELSE served_at END,
+    status = $2::varchar,
+    started_at = CASE WHEN $2::varchar = 'PREPARING' AND started_at IS NULL THEN NOW() ELSE started_at END,
+    ready_at = CASE WHEN $2::varchar = 'READY' AND ready_at IS NULL THEN NOW() ELSE ready_at END,
+    served_at = CASE WHEN $2::varchar = 'SERVED' AND served_at IS NULL THEN NOW() ELSE served_at END,
     updated_at = NOW()
 WHERE id = $1
 RETURNING id, company_id, store_id, order_id, order_number, order_type, table_id, status, priority, notes, created_at, updated_at, started_at, ready_at, served_at

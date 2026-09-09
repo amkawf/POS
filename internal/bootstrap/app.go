@@ -28,6 +28,7 @@ import (
 	tablehttp "pos-backend/internal/table/http"
 	tablerepository "pos-backend/internal/table/repository"
 	tabledb "pos-backend/internal/table/repository/generated"
+	inventoryrepository "pos-backend/internal/inventory/repository"
 )
 
 type App struct {
@@ -89,13 +90,18 @@ func New(
 		queries,
 		txManager,
 	)
+		// Inventory repository & adapter
+	inventoryRepository := inventoryrepository.NewPostgresInventoryRepository(db, txManager)
+	inventoryAdapter := &orderInventoryAdapter{inventoryRepo: inventoryRepository}
 
 	// Order application use cases.
 	createOrderUseCase := application.NewCreateOrderUseCase(
 		orderRepository,
 		kitchenAdapter,
 		tableAdapter,
+		inventoryAdapter,
 	)
+
 	listOrdersUseCase := application.NewListOrdersUseCase(
 		orderRepository,
 	)
@@ -190,4 +196,24 @@ func (a *orderKitchenAdapter) CreateTicket(
 		Items:       ticketItems,
 	})
 	return err
+}
+
+type orderInventoryAdapter struct {
+	inventoryRepo inventoryrepository.InventoryRepository
+}
+
+func (a *orderInventoryAdapter) DeductStock(
+	ctx context.Context,
+	companyID, storeID, orderID uuid.UUID,
+	items []application.CreateOrderItemInput,
+) error {
+	deductions := make([]inventoryrepository.ItemDeduction, 0, len(items))
+	for _, it := range items {
+		deductions = append(deductions, inventoryrepository.ItemDeduction{
+			MenuItemID: it.MenuItemID,
+			ItemName:   it.ItemName,
+			Quantity:   it.Quantity,
+		})
+	}
+	return a.inventoryRepo.DeductStockForOrder(ctx, companyID, storeID, orderID, deductions)
 }
