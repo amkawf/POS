@@ -37,7 +37,16 @@ func (h *Handler) ListMenuItems(c *gin.Context) {
 		return
 	}
 
-	items, err := h.listMenuItemsUseCase.Execute(c.Request.Context(), companyID)
+	// Baca query param store_id jika kasir mengirimkannya
+	var storeID *uuid.UUID
+	if storeIDStr := c.Query("store_id"); storeIDStr != "" {
+		if parsed, err := uuid.Parse(storeIDStr); err == nil {
+			storeID = &parsed
+		}
+	}
+
+	// Panggil use case dengan storeID opsional
+	items, err := h.listMenuItemsUseCase.Execute(c.Request.Context(), companyID, storeID)
 	if err != nil {
 		httputil.InternalError(c, "LIST_MENU_ITEMS_FAILED", err.Error())
 		return
@@ -60,6 +69,7 @@ func (h *Handler) ListMenuItems(c *gin.Context) {
 			Description: item.Description,
 			BasePrice:   item.BasePrice,
 			CategoryIDs: categoryIDs,
+			Stock:       item.Stock, // <-- Teruskan info stock ke response
 		})
 	}
 

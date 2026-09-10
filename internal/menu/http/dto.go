@@ -9,6 +9,7 @@ type MenuItemResponse struct {
 	Description *string     `json:"description,omitempty"`
 	BasePrice   int64       `json:"base_price"`
 	CategoryIDs []uuid.UUID `json:"category_ids"`
+	Stock       *int64      `json:"stock,omitempty"`
 }
 
 type ListMenuItemsResponse struct {

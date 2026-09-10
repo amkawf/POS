@@ -24,6 +24,10 @@ type InventoryRepository interface {
 		companyID, storeID, orderID uuid.UUID,
 		items []ItemDeduction,
 	) error
+	GetStockByStore(
+		ctx context.Context,
+		storeID uuid.UUID,
+	) (map[uuid.UUID]int64, error)
 }
 
 type PostgresInventoryRepository struct {
@@ -80,4 +84,31 @@ func (r *PostgresInventoryRepository) DeductStockForOrder(
 
 		return nil
 	})
+}
+
+// Menghasilkan map: menuItemId -> jumlah stok
+func (r *PostgresInventoryRepository) GetStockByStore(
+	ctx context.Context,
+	storeID uuid.UUID,
+	) (map[uuid.UUID]int64, error) {
+		rows, err := r.db.Query(ctx, `
+		SELECT menu_item_id, stock
+		FROM store_inventory
+		WHERE store_id = $1
+		`, storeID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	stockMap := make(map[uuid.UUID]int64)
+	for rows.Next() {
+		var menuItemID uuid.UUID
+		var stock int64
+		if err := rows.Scan(&menuItemID, &stock); err != nil {
+			return nil, err
+		}
+		stockMap[menuItemID] = stock
+	}
+	return stockMap, rows.Err()
 }

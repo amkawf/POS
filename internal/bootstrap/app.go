@@ -130,7 +130,7 @@ func New(
 	menuQueries := menudb.New(db)
 	menuItemRepository := menurepository.NewPostgresMenuItemRepository(menuQueries)
 	categoryRepository := menurepository.NewPostgresCategoryRepository(menuQueries)
-	listMenuItemsUseCase := menuapplication.NewListMenuItemsUseCase(menuItemRepository)
+	listMenuItemsUseCase := menuapplication.NewListMenuItemsUseCase(menuItemRepository, inventoryRepository)
 	listCategoriesUseCase := menuapplication.NewListCategoriesUseCase(categoryRepository)
 	menuHandler := menuhttp.NewHandler(listMenuItemsUseCase, listCategoriesUseCase)
 

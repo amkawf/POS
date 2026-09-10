@@ -11,4 +11,5 @@ type MenuItem struct {
 	BasePrice   int64
 	Status      string
 	CategoryIDs []uuid.UUID
+	Stock		*int64
 }
