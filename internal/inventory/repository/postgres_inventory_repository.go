@@ -28,6 +28,12 @@ type InventoryRepository interface {
 		ctx context.Context,
 		storeID uuid.UUID,
 	) (map[uuid.UUID]int64, error)
+	AdjustStock(
+		ctx context.Context,
+		companyID, storeID, menuItemID uuid.UUID,
+		quantity int64,
+		notes string,
+	) error
 }
 
 type PostgresInventoryRepository struct {
@@ -111,4 +117,40 @@ func (r *PostgresInventoryRepository) GetStockByStore(
 		stockMap[menuItemID] = stock
 	}
 	return stockMap, rows.Err()
+}
+
+func (r *PostgresInventoryRepository) AdjustStock(
+	ctx context.Context,
+	companyID, storeID, menuItemID uuid.UUID,
+	quantity int64,
+	notes string,
+) error {
+	return r.txManager.WithinTransaction(ctx, func(ctx context.Context, tx pgx.Tx) error {
+		// 1. Eksekusi UPSERT ke store_inventory (sertakan company_id)
+		_, err := tx.Exec(ctx, `
+			INSERT INTO store_inventory (company_id, store_id, menu_item_id, stock, updated_at)
+			VALUES ($1, $2, $3, $4, NOW())
+			ON CONFLICT (store_id, menu_item_id)
+			DO UPDATE SET 
+				stock = store_inventory.stock + EXCLUDED.stock,
+				updated_at = NOW()
+		`, companyID, storeID, menuItemID, quantity) // <-- oper companyID sebagai $1
+		if err != nil {
+			return err
+		}
+
+		// 2. Catat ke Buku Besar (inventory_movements)
+		movementType := "RESTOCK"
+		if quantity < 0 {
+			movementType = "WASTE"
+		}
+		_, err = tx.Exec(ctx, `
+			INSERT INTO inventory_movements (
+				company_id, store_id, menu_item_id, quantity, movement_type, notes
+			) VALUES (
+				$1, $2, $3, $4, $5, $6
+			)
+		`, companyID, storeID, menuItemID, float64(quantity), movementType, notes)
+		return err
+	})
 }

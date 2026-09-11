@@ -29,6 +29,8 @@ import (
 	tablerepository "pos-backend/internal/table/repository"
 	tabledb "pos-backend/internal/table/repository/generated"
 	inventoryrepository "pos-backend/internal/inventory/repository"
+	inventoryapplication "pos-backend/internal/inventory/application"
+	inventoryhttp "pos-backend/internal/inventory/http"
 )
 
 type App struct {
@@ -133,6 +135,9 @@ func New(
 	listMenuItemsUseCase := menuapplication.NewListMenuItemsUseCase(menuItemRepository, inventoryRepository)
 	listCategoriesUseCase := menuapplication.NewListCategoriesUseCase(categoryRepository)
 	menuHandler := menuhttp.NewHandler(listMenuItemsUseCase, listCategoriesUseCase)
+	// Inventory use case and HTTP handler.
+	adjustStockUseCase := inventoryapplication.NewAdjustStockUseCase(inventoryRepository)
+	inventoryHandler := inventoryhttp.NewHandler(adjustStockUseCase)
 
 	// HTTP router and modular route registration.
 	router := httpserver.NewRouter(httpserver.RouterConfig{
@@ -145,6 +150,7 @@ func New(
 	menuHandler.RegisterRoutes(apiV1)
 	tableHandler.RegisterRoutes(apiV1)
 	kitchenHandler.RegisterRoutes(apiV1)
+	inventoryHandler.RegisterRoutes(apiV1)
 
 	return &App{
 		Router:   router,
