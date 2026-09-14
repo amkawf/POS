@@ -11,6 +11,12 @@ import (
 	"pos-backend/internal/config"
 	"pos-backend/internal/database"
 	httpserver "pos-backend/internal/http"
+	ingredientapplication "pos-backend/internal/ingredient/application"
+	ingredienthttp "pos-backend/internal/ingredient/http"
+	ingredientrepository "pos-backend/internal/ingredient/repository"
+	inventoryapplication "pos-backend/internal/inventory/application"
+	inventoryhttp "pos-backend/internal/inventory/http"
+	inventoryrepository "pos-backend/internal/inventory/repository"
 	kitchenapplication "pos-backend/internal/kitchen/application"
 	kitchenhttp "pos-backend/internal/kitchen/http"
 	kitchenrepository "pos-backend/internal/kitchen/repository"
@@ -23,14 +29,14 @@ import (
 	orderhttp "pos-backend/internal/order/http"
 	"pos-backend/internal/order/repository"
 	orderdb "pos-backend/internal/order/repository/generated"
+	recipeapplication "pos-backend/internal/recipe/application"
+	recipehttp "pos-backend/internal/recipe/http"
+	reciperepository "pos-backend/internal/recipe/repository"
 	tableapplication "pos-backend/internal/table/application"
 	tabledomain "pos-backend/internal/table/domain"
 	tablehttp "pos-backend/internal/table/http"
 	tablerepository "pos-backend/internal/table/repository"
 	tabledb "pos-backend/internal/table/repository/generated"
-	inventoryrepository "pos-backend/internal/inventory/repository"
-	inventoryapplication "pos-backend/internal/inventory/application"
-	inventoryhttp "pos-backend/internal/inventory/http"
 )
 
 type App struct {
@@ -74,7 +80,8 @@ func New(
 	createTicketUseCase := kitchenapplication.NewCreateTicketUseCase(kitchenRepo)
 	listTicketsUseCase := kitchenapplication.NewListTicketsUseCase(kitchenRepo)
 	updateTicketStatusUseCase := kitchenapplication.NewUpdateTicketStatusUseCase(kitchenRepo)
-	kitchenHandler := kitchenhttp.NewHandler(listTicketsUseCase, updateTicketStatusUseCase)
+	batchProduceUsecase := kitchenapplication.NewBatchProduceUseCase(db, txManager)
+	kitchenHandler := kitchenhttp.NewHandler(listTicketsUseCase, updateTicketStatusUseCase, batchProduceUsecase)
 
 	// Adapter to trigger kitchen tickets when orders are created
 	kitchenAdapter := &orderKitchenAdapter{createTicketUseCase: createTicketUseCase}
@@ -92,7 +99,7 @@ func New(
 		queries,
 		txManager,
 	)
-		// Inventory repository & adapter
+	// Inventory repository & adapter
 	inventoryRepository := inventoryrepository.NewPostgresInventoryRepository(db, txManager)
 	inventoryAdapter := &orderInventoryAdapter{inventoryRepo: inventoryRepository}
 
@@ -130,14 +137,30 @@ func New(
 
 	// Menu repository, use case and HTTP handler.
 	menuQueries := menudb.New(db)
-	menuItemRepository := menurepository.NewPostgresMenuItemRepository(menuQueries)
+	menuItemRepository := menurepository.NewPostgresMenuItemRepository(db, menuQueries)
 	categoryRepository := menurepository.NewPostgresCategoryRepository(menuQueries)
 	listMenuItemsUseCase := menuapplication.NewListMenuItemsUseCase(menuItemRepository, inventoryRepository)
 	listCategoriesUseCase := menuapplication.NewListCategoriesUseCase(categoryRepository)
-	menuHandler := menuhttp.NewHandler(listMenuItemsUseCase, listCategoriesUseCase)
+	createMenuItemUseCase := menuapplication.NewCreateMenuItemUseCase(menuItemRepository)
+	menuHandler := menuhttp.NewHandler(listMenuItemsUseCase, createMenuItemUseCase, listCategoriesUseCase)
 	// Inventory use case and HTTP handler.
 	adjustStockUseCase := inventoryapplication.NewAdjustStockUseCase(inventoryRepository)
 	inventoryHandler := inventoryhttp.NewHandler(adjustStockUseCase)
+
+	// Ingredient module wiring
+	ingredientRepo := ingredientrepository.NewPostgresIngredientRepository(db, txManager)
+	createIngredientUseCase := ingredientapplication.NewCreateIngredientUseCase(ingredientRepo)
+	listIngredientsUseCase := ingredientapplication.NewListIngredientsUseCase(ingredientRepo)
+	restockIngredientUseCase := ingredientapplication.NewRestockIngredientUseCase(ingredientRepo)
+	updateIngredientUseCase := ingredientapplication.NewUpdateIngredientUseCase(ingredientRepo)
+	ingredientHandler := ingredienthttp.NewHandler(createIngredientUseCase, listIngredientsUseCase, restockIngredientUseCase, updateIngredientUseCase)
+	//ingredientHandler := ingredienthttp.NewHandler(createIngredientUseCase, listIngredientsUseCase, restockIngredientUseCase)
+
+	// Recipe module wiring
+	recipeRepo := reciperepository.NewPostgresRecipeRepository(db, txManager)
+	getRecipeUseCase := recipeapplication.NewGetRecipeUseCase(recipeRepo)
+	saveRecipeUseCase := recipeapplication.NewSaveRecipeUseCase(recipeRepo)
+	recipeHandler := recipehttp.NewHandler(getRecipeUseCase, saveRecipeUseCase)
 
 	// HTTP router and modular route registration.
 	router := httpserver.NewRouter(httpserver.RouterConfig{
@@ -151,6 +174,8 @@ func New(
 	tableHandler.RegisterRoutes(apiV1)
 	kitchenHandler.RegisterRoutes(apiV1)
 	inventoryHandler.RegisterRoutes(apiV1)
+	ingredientHandler.RegisterRoutes(apiV1)
+	recipeHandler.RegisterRoutes(apiV1)
 
 	return &App{
 		Router:   router,

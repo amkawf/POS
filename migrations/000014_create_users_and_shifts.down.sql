@@ -1,0 +1,4 @@
+DROP TABLE IF EXISTS cashier_shifts;
+DROP TABLE IF EXISTS user_stores;
+DROP TABLE IF EXISTS users;
+

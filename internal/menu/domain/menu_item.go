@@ -12,4 +12,5 @@ type MenuItem struct {
 	Status      string
 	CategoryIDs []uuid.UUID
 	Stock		*int64
+	FulfillmentType string      `json:"fulfillment_type"` // "BATCH_COOKING" atau "MADE_TO_ORDER"
 }

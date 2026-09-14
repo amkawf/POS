@@ -12,15 +12,18 @@ import (
 
 type Handler struct {
 	listMenuItemsUseCase  *application.ListMenuItemsUseCase
+	createMenuItemUseCase *application.CreateMenuItemUseCase
 	listCategoriesUseCase *application.ListCategoriesUseCase
 }
 
 func NewHandler(
 	listMenuItemsUseCase *application.ListMenuItemsUseCase,
+	createMenuItemUseCase *application.CreateMenuItemUseCase,
 	listCategoriesUseCase *application.ListCategoriesUseCase,
 ) *Handler {
 	return &Handler{
 		listMenuItemsUseCase:  listMenuItemsUseCase,
+		createMenuItemUseCase: createMenuItemUseCase,
 		listCategoriesUseCase: listCategoriesUseCase,
 	}
 }
@@ -28,6 +31,7 @@ func NewHandler(
 // RegisterRoutes registers the menu module routes to the provided router group.
 func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 	rg.GET("/menu-items", h.ListMenuItems)
+	rg.POST("/menu-items", h.CreateMenuItem)
 	rg.GET("/menu-categories", h.ListCategories)
 }
 
@@ -63,13 +67,14 @@ func (h *Handler) ListMenuItems(c *gin.Context) {
 		}
 
 		response.Items = append(response.Items, MenuItemResponse{
-			ID:          item.ID,
-			SKU:         item.SKU,
-			Name:        item.Name,
-			Description: item.Description,
-			BasePrice:   item.BasePrice,
-			CategoryIDs: categoryIDs,
-			Stock:       item.Stock, // <-- Teruskan info stock ke response
+			ID:              item.ID,
+			SKU:             item.SKU,
+			Name:            item.Name,
+			Description:     item.Description,
+			BasePrice:       item.BasePrice,
+			CategoryIDs:     categoryIDs,
+			Stock:           item.Stock,
+			FulfillmentType: item.FulfillmentType,
 		})
 	}
 
@@ -102,4 +107,28 @@ func (h *Handler) ListCategories(c *gin.Context) {
 	}
 
 	httputil.JSON(c, http.StatusOK, response)
+}
+
+// Tambahkan fungsi CreateMenuItem di bagian bawah handler.go:
+func (h *Handler) CreateMenuItem(c *gin.Context) {
+	var req CreateMenuItemRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		httputil.BadRequest(c, "INVALID_PAYLOAD", err.Error())
+		return
+	}
+	item, err := h.createMenuItemUseCase.Execute(
+		c.Request.Context(),
+		req.CompanyID,
+		req.SKU,
+		req.Name,
+		req.Description,
+		req.BasePrice,
+		req.CategoryIDs,
+		req.FulfillmentType,
+	)
+	if err != nil {
+		httputil.InternalError(c, "CREATE_MENU_ITEM_FAILED", err.Error())
+		return
+	}
+	httputil.JSON(c, http.StatusCreated, item)
 }

@@ -13,17 +13,20 @@ import (
 )
 
 type Handler struct {
-	listTicketsUseCase        *application.ListTicketsUseCase
-	updateTicketStatusUseCase *application.UpdateTicketStatusUseCase
+	listTicketsUseCase       	*application.ListTicketsUseCase
+	updateTicketStatusUseCase 	*application.UpdateTicketStatusUseCase
+	batchProduceUseCase			*application.BatchProduceUseCase
 }
 
 func NewHandler(
 	listTicketsUseCase *application.ListTicketsUseCase,
 	updateTicketStatusUseCase *application.UpdateTicketStatusUseCase,
+	batchProduceUseCase *application.BatchProduceUseCase,
 ) *Handler {
 	return &Handler{
 		listTicketsUseCase:        listTicketsUseCase,
 		updateTicketStatusUseCase: updateTicketStatusUseCase,
+		batchProduceUseCase: batchProduceUseCase,
 	}
 }
 
@@ -31,6 +34,7 @@ func NewHandler(
 func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 	rg.GET("/kitchen/tickets", h.ListTickets)
 	rg.PATCH("/kitchen/tickets/:id/status", h.UpdateTicketStatus)
+	rg.POST("/kitchen/produce", h.BatchProduce)
 }
 
 func (h *Handler) ListTickets(c *gin.Context) {
@@ -153,4 +157,39 @@ func mapTicketToResponse(t domain.KitchenTicket) KitchenTicketResponse {
 		ReadyAt:     t.ReadyAt,
 		ServedAt:    t.ServedAt,
 	}
+}
+
+// BatchProduceRequest adalah payload JSON saat koki menekan tombol "Selesai Masak X Porsi"
+type BatchProduceRequest struct {
+	CompanyID  uuid.UUID `json:"company_id" binding:"required"`
+	StoreID    uuid.UUID `json:"store_id" binding:"required"`
+	MenuItemID uuid.UUID `json:"menu_item_id" binding:"required"`
+	Portions   int64     `json:"portions" binding:"required"`
+	Notes      string    `json:"notes"`
+}
+
+// BatchProduce menangani POST /api/v1/kitchen/produce
+func (h *Handler) BatchProduce(c *gin.Context) {
+	var req BatchProduceRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		httputil.BadRequest(c, "INVALID_PAYLOAD", err.Error())
+		return
+	}
+
+	err := h.batchProduceUseCase.Execute(
+		c.Request.Context(),
+		req.CompanyID,
+		req.StoreID,
+		req.MenuItemID,
+		req.Portions,
+		req.Notes,
+	)
+	if err != nil {
+		httputil.InternalError(c, "BATCH_PRODUCE_FAILED", err.Error())
+		return
+	}
+
+	httputil.JSON(c, http.StatusOK, gin.H{
+		"message": "Produksi porsi berhasil dicatat",
+	})
 }
