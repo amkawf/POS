@@ -37,6 +37,9 @@ import (
 	tablehttp "pos-backend/internal/table/http"
 	tablerepository "pos-backend/internal/table/repository"
 	tabledb "pos-backend/internal/table/repository/generated"
+	authapplication "pos-backend/internal/auth/application"
+	authhttp "pos-backend/internal/auth/http"
+	authrepository "pos-backend/internal/auth/repository"
 )
 
 type App struct {
@@ -93,6 +96,17 @@ func New(
 	updateTableStatusUseCase := tableapplication.NewUpdateTableStatusUseCase(tableRepository)
 	tableHandler := tablehttp.NewHandler(listTablesUseCase, updateTableStatusUseCase)
 	tableAdapter := &orderTableAdapter{tableRepo: tableRepository}
+
+	userRepo := authrepository.NewPostgresUserRepository(db)
+	shiftRepo := authrepository.NewPostgresShiftRepository(db)
+	jwtSecret := "pos_jwt_secret_key_dev_2026"
+
+	verifyPinUseCase := authapplication.NewVerifyPinUseCase(userRepo, shiftRepo, jwtSecret)
+	listStoreStaffUseCase := authapplication.NewListStoreStaffUseCase(userRepo)
+	openShiftUseCase := authapplication.NewOpenShiftUseCase(shiftRepo)
+	closeShiftUseCase := authapplication.NewCloseShiftUseCase(shiftRepo)
+
+	authHandler := authhttp.NewHandler(verifyPinUseCase, listStoreStaffUseCase, openShiftUseCase, closeShiftUseCase)
 
 	// Order repository.
 	orderRepository := repository.NewPostgresOrderRepository(
@@ -176,6 +190,7 @@ func New(
 	inventoryHandler.RegisterRoutes(apiV1)
 	ingredientHandler.RegisterRoutes(apiV1)
 	recipeHandler.RegisterRoutes(apiV1)
+	authHandler.RegisterRoutes(apiV1)
 
 	return &App{
 		Router:   router,
