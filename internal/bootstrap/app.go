@@ -156,7 +156,9 @@ func New(
 	listMenuItemsUseCase := menuapplication.NewListMenuItemsUseCase(menuItemRepository, inventoryRepository)
 	listCategoriesUseCase := menuapplication.NewListCategoriesUseCase(categoryRepository)
 	createMenuItemUseCase := menuapplication.NewCreateMenuItemUseCase(menuItemRepository)
-	menuHandler := menuhttp.NewHandler(listMenuItemsUseCase, createMenuItemUseCase, listCategoriesUseCase)
+	deleteMenuItemUsecase := menuapplication.NewDeleteMenuItemUseCase(menuItemRepository)
+	menuHandler := menuhttp.NewHandler(listMenuItemsUseCase, createMenuItemUseCase, listCategoriesUseCase, deleteMenuItemUsecase)
+	
 	// Inventory use case and HTTP handler.
 	adjustStockUseCase := inventoryapplication.NewAdjustStockUseCase(inventoryRepository)
 	inventoryHandler := inventoryhttp.NewHandler(adjustStockUseCase)
@@ -167,7 +169,8 @@ func New(
 	listIngredientsUseCase := ingredientapplication.NewListIngredientsUseCase(ingredientRepo)
 	restockIngredientUseCase := ingredientapplication.NewRestockIngredientUseCase(ingredientRepo)
 	updateIngredientUseCase := ingredientapplication.NewUpdateIngredientUseCase(ingredientRepo)
-	ingredientHandler := ingredienthttp.NewHandler(createIngredientUseCase, listIngredientsUseCase, restockIngredientUseCase, updateIngredientUseCase)
+	deleteIngredientUseCase := ingredientapplication.NewDeleteIngredientUseCase(ingredientRepo)
+	ingredientHandler := ingredienthttp.NewHandler(createIngredientUseCase, listIngredientsUseCase, restockIngredientUseCase, updateIngredientUseCase, deleteIngredientUseCase,)
 	//ingredientHandler := ingredienthttp.NewHandler(createIngredientUseCase, listIngredientsUseCase, restockIngredientUseCase)
 
 	// Recipe module wiring

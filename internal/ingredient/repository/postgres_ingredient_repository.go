@@ -17,6 +17,7 @@ type IngredientRepository interface {
 	ListByStore(ctx context.Context, companyID, storeID uuid.UUID) ([]domain.Ingredient, error)
 	Restock(ctx context.Context, companyID, storeID, ingredientID uuid.UUID, quantity float64, notes string) error
 	Update(ctx context.Context, ing *domain.Ingredient) error 
+	Delete(ctx context.Context, companyID, ingredientID uuid.UUID) error
 }
 
 type PostgresIngredientRepository struct {
@@ -148,5 +149,18 @@ func (r *PostgresIngredientRepository) Update(ctx context.Context, ing *domain.I
 		return fmt.Errorf("bahan baku tidak ditemukan atau tidak memiliki akses")
 	}
 
+	return nil
+}
+
+// Delete menghapus bahan baku beserta relasi stok dan resepnya (CASCADE)
+func (r *PostgresIngredientRepository) Delete(ctx context.Context, companyID, ingredientID uuid.UUID) error {
+	query := `DELETE FROM ingredients WHERE id = $1 AND company_id = $2`
+	tag, err := r.db.Exec(ctx, query, ingredientID, companyID)
+	if err != nil {
+		return err
+	}
+	if tag.RowsAffected() == 0 {
+		return fmt.Errorf("bahan baku tidak ditemukan atau tidak memiliki akses")
+	}
 	return nil
 }

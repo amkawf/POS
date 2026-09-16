@@ -31,6 +31,7 @@ type CreateOrderResponse struct {
 	OrderNumber string     `json:"order_number"`
 	Status      string     `json:"status"`
 	Subtotal    int64      `json:"subtotal"`
+	CreatedBy   *uuid.UUID `json:"created_by,omitempty"`
 	TotalAmount int64      `json:"total_amount"`
 }
 
@@ -44,6 +45,7 @@ type OrderResponse struct {
 	OrderSource    string              `json:"order_source"`
 	Status         string              `json:"status"`
 	CustomerName   *string             `json:"customer_name"`
+	CreatedBy   *uuid.UUID `json:"created_by,omitempty"`
 	Subtotal       int64               `json:"subtotal"`
 	DiscountAmount int64               `json:"discount_amount"`
 	TaxAmount      int64               `json:"tax_amount"`

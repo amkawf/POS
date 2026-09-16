@@ -14,17 +14,20 @@ type Handler struct {
 	listMenuItemsUseCase  *application.ListMenuItemsUseCase
 	createMenuItemUseCase *application.CreateMenuItemUseCase
 	listCategoriesUseCase *application.ListCategoriesUseCase
+	deleteMenuItemUseCase *application.DeleteMenuItemUseCase
 }
 
 func NewHandler(
 	listMenuItemsUseCase *application.ListMenuItemsUseCase,
 	createMenuItemUseCase *application.CreateMenuItemUseCase,
 	listCategoriesUseCase *application.ListCategoriesUseCase,
+	deleteMenuItemUseCase *application.DeleteMenuItemUseCase,
 ) *Handler {
 	return &Handler{
 		listMenuItemsUseCase:  listMenuItemsUseCase,
 		createMenuItemUseCase: createMenuItemUseCase,
 		listCategoriesUseCase: listCategoriesUseCase,
+		deleteMenuItemUseCase: deleteMenuItemUseCase,
 	}
 }
 
@@ -33,6 +36,7 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 	rg.GET("/menu-items", h.ListMenuItems)
 	rg.POST("/menu-items", h.CreateMenuItem)
 	rg.GET("/menu-categories", h.ListCategories)
+	rg.DELETE("/menu-items/:id", h.DeleteMenuItem)
 }
 
 func (h *Handler) ListMenuItems(c *gin.Context) {
@@ -131,4 +135,28 @@ func (h *Handler) CreateMenuItem(c *gin.Context) {
 		return
 	}
 	httputil.JSON(c, http.StatusCreated, item)
+}
+
+// DeleteMenuItem menangani DELETE /api/v1/menu-items/:id?company_id=...
+func (h *Handler) DeleteMenuItem(c *gin.Context) {
+	idStr := c.Param("id")
+	itemID, err := uuid.Parse(idStr)
+	if err != nil {
+		httputil.BadRequest(c, "INVALID_ID", "ID menu item tidak valid")
+		return
+	}
+
+	companyID, ok := httputil.ParseUUIDQuery(c, "company_id")
+	if !ok {
+		return
+	}
+
+	if err := h.deleteMenuItemUseCase.Execute(c.Request.Context(), companyID, itemID); err != nil {
+		httputil.InternalError(c, "DELETE_MENU_ITEM_FAILED", err.Error())
+		return
+	}
+
+	httputil.JSON(c, http.StatusOK, gin.H{
+		"message": "Menu item berhasil dihapus/dinonaktifkan",
+	})
 }

@@ -2,6 +2,7 @@ package repository
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgtype"
@@ -143,6 +144,23 @@ func (r *PostgresMenuItemRepository) Create(ctx context.Context, item *domain.Me
 		if err != nil {
 			return err
 		}
+	}
+	return nil
+}
+
+// Delete menonaktifkan status menu (Soft Delete) agar tidak merusak data transaksi masa lalu
+func (r *PostgresMenuItemRepository) Delete(ctx context.Context, companyID, itemID uuid.UUID) error {
+	query := `
+		UPDATE menu_items 
+		SET status = 'INACTIVE', updated_at = NOW() 
+		WHERE id = $1 AND company_id = $2
+	`
+	tag, err := r.db.Exec(ctx, query, itemID, companyID)
+	if err != nil {
+		return err
+	}
+	if tag.RowsAffected() == 0 {
+		return fmt.Errorf("menu item tidak ditemukan atau tidak memiliki akses")
 	}
 	return nil
 }

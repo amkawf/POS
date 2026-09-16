@@ -262,6 +262,7 @@ func toOrderResponse(order *domain.Order) OrderResponse {
 		OrderSource:    string(order.OrderSource),
 		Status:         string(order.Status),
 		CustomerName:   order.CustomerName,
+		CreatedBy:		order.CreatedBy,
 		Subtotal:       order.Subtotal,
 		DiscountAmount: order.DiscountAmount,
 		TaxAmount:      order.TaxAmount,

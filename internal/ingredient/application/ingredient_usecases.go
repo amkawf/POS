@@ -97,3 +97,14 @@ func (uc *UpdateIngredientUseCase) Execute(
 	}
 	return uc.repo.Update(ctx, ing)
 }
+
+// DeleteIngredientUseCase menangani penghapusan bahan baku
+type DeleteIngredientUseCase struct {
+	repo repository.IngredientRepository
+}
+func NewDeleteIngredientUseCase(repo repository.IngredientRepository) *DeleteIngredientUseCase {
+	return &DeleteIngredientUseCase{repo: repo}
+}
+func (uc *DeleteIngredientUseCase) Execute(ctx context.Context, companyID, ingredientID uuid.UUID) error {
+	return uc.repo.Delete(ctx, companyID, ingredientID)
+}

@@ -17,6 +17,7 @@ type Handler struct {
 	listIngredientsUseCase   *application.ListIngredientsUseCase
 	restockIngredientUseCase *application.RestockIngredientUseCase
 	updateIngredientUseCase  *application.UpdateIngredientUseCase
+	deleteIngredientUseCase  *application.DeleteIngredientUseCase
 }
 
 func NewHandler(
@@ -24,12 +25,14 @@ func NewHandler(
 	listIngredientsUseCase *application.ListIngredientsUseCase,
 	restockIngredientUseCase *application.RestockIngredientUseCase,
 	updateIngredientUseCase *application.UpdateIngredientUseCase,
+	deleteIngredientUseCase *application.DeleteIngredientUseCase,
 ) *Handler {
 	return &Handler{
 		createIngredientUseCase:  createIngredientUseCase,
 		listIngredientsUseCase:   listIngredientsUseCase,
 		restockIngredientUseCase: restockIngredientUseCase,
 		updateIngredientUseCase:  updateIngredientUseCase,
+		deleteIngredientUseCase:  deleteIngredientUseCase,
 	}
 }
 
@@ -39,6 +42,7 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 	rg.POST("/ingredients", h.CreateIngredient)
 	rg.POST("/ingredients/restock", h.RestockIngredient)
 	rg.PUT("/ingredients/:id", h.UpdateIngredient)
+	rg.DELETE("/ingredients/:id", h.DeleteIngredient)
 }
 
 // ListIngredients menangani GET /api/v1/ingredients?company_id=...&store_id=...
@@ -162,4 +166,29 @@ func (h *Handler) UpdateIngredient(c *gin.Context) {
     httputil.JSON(c, http.StatusOK, gin.H{
         "message": "Bahan baku berhasil diperbarui",
     })
+}
+
+// DeleteIngredient menangani DELETE /api/v1/ingredients/:id?company_id=...
+func (h *Handler) DeleteIngredient(c *gin.Context) {
+	idStr := c.Param("id")
+	ingredientID, err := uuid.Parse(idStr)
+	if err != nil {
+		httputil.BadRequest(c, "INVALID_ID", "ID bahan baku tidak valid")
+		return
+	}
+
+	companyID, ok := httputil.ParseUUIDQuery(c, "company_id")
+	if !ok {
+		return
+	}
+
+	err = h.deleteIngredientUseCase.Execute(c.Request.Context(), companyID, ingredientID)
+	if err != nil {
+		httputil.InternalError(c, "DELETE_INGREDIENT_FAILED", err.Error())
+		return
+	}
+
+	httputil.JSON(c, http.StatusOK, gin.H{
+		"message": "Bahan baku berhasil dihapus",
+	})
 }
