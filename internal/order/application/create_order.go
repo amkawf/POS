@@ -35,7 +35,7 @@ type CreateOrderItemInput struct {
 
 	Quantity  int64
 	UnitPrice int64
-	Notes *string
+	Notes     *string
 }
 
 type KitchenTicketCreator interface {
@@ -53,9 +53,9 @@ type TableStatusUpdater interface {
 }
 
 type CreateOrderUseCase struct {
-	orderRepository repository.OrderRepository
-	kitchenCreator  KitchenTicketCreator
-	tableUpdater    TableStatusUpdater
+	orderRepository   repository.OrderRepository
+	kitchenCreator    KitchenTicketCreator
+	tableUpdater      TableStatusUpdater
 	inventoryDeductor InventoryDeductor
 }
 
@@ -74,9 +74,9 @@ func NewCreateOrderUseCase(
 	inventoryDeductor InventoryDeductor,
 ) *CreateOrderUseCase {
 	return &CreateOrderUseCase{
-		orderRepository: orderRepository,
-		kitchenCreator:  kitchenCreator,
-		tableUpdater:    tableUpdater,
+		orderRepository:   orderRepository,
+		kitchenCreator:    kitchenCreator,
+		tableUpdater:      tableUpdater,
 		inventoryDeductor: inventoryDeductor,
 	}
 }
@@ -122,30 +122,13 @@ func (uc *CreateOrderUseCase) Execute(
 		return nil, err
 	}
 
-	// If order is bound to a table, mark the table as OCCUPIED
-	if uc.tableUpdater != nil && order.TableID != nil {
-		_ = uc.tableUpdater.UpdateTableStatus(ctx, order.CompanyID, order.StoreID, *order.TableID, "OCCUPIED")
-	}
-
-	if uc.kitchenCreator != nil {
-		_ = uc.kitchenCreator.CreateTicket(
-			ctx,
-			order.CompanyID,
-			order.StoreID,
-			order.ID,
-			order.OrderNumber,
-			string(order.OrderType),
-			order.TableID,
-			input.Items,
-		)
-	}
-
 	if uc.inventoryDeductor != nil {
 		if err := uc.inventoryDeductor.DeductStock(ctx, order.CompanyID, order.StoreID, order.ID, input.Items); err != nil {
 			return nil, err
 		}
 	}
 
+	// If order is bound to a table, mark the table as OCCUPIED
 	if uc.tableUpdater != nil && order.TableID != nil {
 		_ = uc.tableUpdater.UpdateTableStatus(ctx, order.CompanyID, order.StoreID, *order.TableID, "OCCUPIED")
 	}

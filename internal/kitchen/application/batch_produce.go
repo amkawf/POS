@@ -43,6 +43,19 @@ func (uc *BatchProduceUseCase) Execute(
 
 	// Seluruh pemotongan bahan & penambahan porsi jadi dibungkus 1 Transaksi Atomik
 	return uc.txManager.WithinTransaction(ctx, func(ctx context.Context, tx pgx.Tx) error {
+		var fulfillmentType string
+		err := tx.QueryRow(ctx, `
+			SELECT COALESCE(fulfillment_type, 'BATCH_COOKING')
+			FROM menu_items
+			WHERE id = $1
+		`, menuItemID).Scan(&fulfillmentType)
+		if err != nil {
+			return err
+		}
+		if fulfillmentType == "MADE_TO_ORDER" {
+			return fmt.Errorf("menu bertipe Made-to-Order tidak memerlukan batch masak; porsi otomatis tersedia berdasarkan stok bahan baku")
+		}
+
 		// 1. Ambil resep komposisi bahan baku untuk menu ini
 		rows, err := tx.Query(ctx, `
 			SELECT ingredient_id, quantity_per_portion
