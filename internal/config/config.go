@@ -70,7 +70,7 @@ func Load() (Config, error) {
 
 	cfg := Config{
 		AppEnv:  getEnv("APP_ENV", "development"),
-		AppPort: getEnv("APP_PORT", "8080"),
+		AppPort: getEnv("PORT", getEnv("APP_PORT", "8080")),
 
 		Database: DatabaseConfig{
 			URL:      getEnv("DATABASE_URL", DefaultDatabaseURL),
