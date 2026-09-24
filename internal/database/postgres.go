@@ -46,8 +46,8 @@ func NewPostgresPool(
 		return nil, fmt.Errorf("parse postgres config: %w", err)
 	}
 
-	poolConfig.MaxConns = 10
-	poolConfig.MinConns = 2
+	poolConfig.MaxConns = 5
+	poolConfig.MinConns = 0
 	poolConfig.MaxConnLifetime = time.Hour
 	poolConfig.MaxConnIdleTime = 30 * time.Minute
 

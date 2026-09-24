@@ -2,12 +2,15 @@ package bootstrap
 
 import (
 	"context"
-	"fmt"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
 
+	authapplication "pos-backend/internal/auth/application"
+	authhttp "pos-backend/internal/auth/http"
+	authrepository "pos-backend/internal/auth/repository"
 	"pos-backend/internal/config"
 	"pos-backend/internal/database"
 	httpserver "pos-backend/internal/http"
@@ -37,9 +40,6 @@ import (
 	tablehttp "pos-backend/internal/table/http"
 	tablerepository "pos-backend/internal/table/repository"
 	tabledb "pos-backend/internal/table/repository/generated"
-	authapplication "pos-backend/internal/auth/application"
-	authhttp "pos-backend/internal/auth/http"
-	authrepository "pos-backend/internal/auth/repository"
 )
 
 type App struct {
@@ -69,9 +69,12 @@ func New(
 		return nil, err
 	}
 
-	if err := database.Ping(ctx, db); err != nil {
-		return nil, fmt.Errorf("database connection failed: %w", err)
-	}
+	// Warm up database connection in background so HTTP server binds to PORT immediately
+	go func() {
+		pingCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		_ = database.Ping(pingCtx, db)
+	}()
 
 	// Database infrastructure.
 	queries := orderdb.New(db)
@@ -158,7 +161,7 @@ func New(
 	createMenuItemUseCase := menuapplication.NewCreateMenuItemUseCase(menuItemRepository)
 	deleteMenuItemUsecase := menuapplication.NewDeleteMenuItemUseCase(menuItemRepository)
 	menuHandler := menuhttp.NewHandler(listMenuItemsUseCase, createMenuItemUseCase, listCategoriesUseCase, deleteMenuItemUsecase)
-	
+
 	// Inventory use case and HTTP handler.
 	adjustStockUseCase := inventoryapplication.NewAdjustStockUseCase(inventoryRepository)
 	inventoryHandler := inventoryhttp.NewHandler(adjustStockUseCase)
@@ -170,7 +173,7 @@ func New(
 	restockIngredientUseCase := ingredientapplication.NewRestockIngredientUseCase(ingredientRepo)
 	updateIngredientUseCase := ingredientapplication.NewUpdateIngredientUseCase(ingredientRepo)
 	deleteIngredientUseCase := ingredientapplication.NewDeleteIngredientUseCase(ingredientRepo)
-	ingredientHandler := ingredienthttp.NewHandler(createIngredientUseCase, listIngredientsUseCase, restockIngredientUseCase, updateIngredientUseCase, deleteIngredientUseCase,)
+	ingredientHandler := ingredienthttp.NewHandler(createIngredientUseCase, listIngredientsUseCase, restockIngredientUseCase, updateIngredientUseCase, deleteIngredientUseCase)
 	//ingredientHandler := ingredienthttp.NewHandler(createIngredientUseCase, listIngredientsUseCase, restockIngredientUseCase)
 
 	// Recipe module wiring
