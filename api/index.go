@@ -3,6 +3,7 @@ package handler
 import (
 	"context"
 	"net/http"
+	"strings"
 	"sync"
 
 	"pos-backend/internal/bootstrap"
@@ -30,6 +31,15 @@ func Handler(w http.ResponseWriter, r *http.Request) {
 	if initErr != nil {
 		http.Error(w, "Backend initialization failed: "+initErr.Error(), http.StatusInternalServerError)
 		return
+	}
+
+	// Pulihkan path asli dari rewrite vercel.json (?__path=/...)
+	if origPath := r.URL.Query().Get("__path"); origPath != "" {
+		if !strings.HasPrefix(origPath, "/") {
+			origPath = "/" + origPath
+		}
+		r.URL.Path = origPath
+		r.URL.RawPath = origPath
 	}
 
 	appInstance.Router.ServeHTTP(w, r)
